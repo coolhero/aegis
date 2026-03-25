@@ -37,7 +37,7 @@
 |-----|------|--------|------|-------|--------|
 | F001 | Foundation Setup | completed | T0 | verified | main |
 | F002 | LLM Gateway Core | completed | T1 | verified | main |
-| F003 | Auth & Multi-tenancy | in-progress | T1 | implemented | 003-auth-multi-tenancy |
+| F003 | Auth & Multi-tenancy | completed | T1 | verified | main |
 | F004 | Token Budget Management | pending | T1 | pre-context | — |
 | F005 | Request Logging & Tracing | pending | T1 | pre-context | — |
 | F006 | Security Guardrails | pending | T2 | pre-context | — |
