@@ -1,9 +1,13 @@
 import { Global, Module, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import * as IORedis from 'ioredis';
 import { RedisService } from './redis.service';
+import { REDIS_CLIENT } from './redis.constants';
 
-export const REDIS_CLIENT = 'REDIS_CLIENT';
+export { REDIS_CLIENT };
+
+// Handle both ESM and CJS default export patterns
+const Redis = (IORedis as any).default || IORedis;
 
 @Global()
 @Module({
@@ -11,7 +15,7 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
     {
       provide: REDIS_CLIENT,
       inject: [ConfigService],
-      useFactory: (configService: ConfigService): Redis => {
+      useFactory: (configService: ConfigService) => {
         const logger = new Logger('RedisModule');
 
         const client = new Redis({

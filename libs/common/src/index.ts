@@ -7,6 +7,25 @@ export { HttpExceptionFilter } from './filters/http-exception.filter';
 export { ResponseInterceptor } from './interceptors/response.interceptor';
 export { LoggerService } from './logger/logger.service';
 
+// F003: Auth & Multi-tenancy
+export {
+  UserRole,
+  JwtPayload,
+  TenantContext,
+  ApiKeyPayload,
+  Organization,
+  Team,
+  User,
+  ApiKey,
+  ApiKeyAuthGuard,
+  JwtAuthGuard,
+  RolesGuard,
+  Roles,
+  ROLES_KEY,
+  Public,
+  IS_PUBLIC_KEY,
+} from './auth';
+
 // F002: LLM Gateway Core
 export {
   ProviderAdapter,
