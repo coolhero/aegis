@@ -235,7 +235,7 @@ Phase 5: → Case Study finalization (EN + KO)
 ```
 Phase 0: ✅ Market Research & Ideation
 Phase 1: ✅ git init, CLAUDE.md, /domain-extend (3 custom modules)
-Phase 2: → /smart-sdd init (Proposal Mode)
+Phase 2: ✅ /smart-sdd init (Proposal Mode, CI 97%)
 Phase 3: → /smart-sdd add (Feature definitions)
 Phase 4: → /smart-sdd pipeline (T0+T1 Features)
 Phase 5: → Case Study finalization (EN + KO)
@@ -256,9 +256,83 @@ Phase 5: → Case Study finalization (EN + KO)
 
 ---
 
-## Phase 2: Project Initialization
+## Phase 2: Project Initialization (smart-sdd init)
 
-> Status: PENDING — will be documented as /smart-sdd init is executed
+> Status: ✅ COMPLETED (2026-03-25)
+
+### 2.1 Init Mode Selection
+
+**Input**: Idea string ("AEGIS — Enterprise AI Support Platform...")
+**Mode**: Proposal Mode (idea string triggers automatic Proposal generation)
+
+### 2.2 Signal Extraction + CI Scoring
+
+**Method**: S0/A0 keyword matching against 58 Concern + 14 Archetype + 10 Interface modules
+
+**CI Score: 97% (35/36) — Rich Tier**
+
+| Dimension | Weight | Confidence | Points | Evidence |
+|-----------|--------|------------|--------|----------|
+| Core Purpose | ×3 | 3 | 9 | "Enterprise AI gateway" — 명확한 문제/솔루션 |
+| Key Capabilities | ×3 | 3 | 9 | 5개 주요 기능 명시적으로 나열 |
+| Project Type | ×2 | 3 | 6 | HTTP API + GUI (admin dashboard) |
+| Tech Stack | ×1 | 3 | 3 | TS, NestJS, Next.js, PG, Redis 완전 명시 |
+| Target Users | ×1 | 2 | 2 | Enterprise teams 암시, 명시적이지 않음 |
+| Scale & Scope | ×1 | 3 | 3 | "MVP, small team, self-hosted" |
+| Constraints | ×1 | 3 | 3 | OWASP LLM Top 10, EU AI Act |
+
+**Routing**: Rich (≥70%) → Proposal 바로 생성 (clarification 스킵)
+
+### 2.3 Module Signal Matches
+
+| Module | Match Type | Matched Keywords |
+|--------|-----------|-----------------|
+| http-api | Interface (S0) | REST API, endpoints |
+| gui | Interface (S0) | admin dashboard, Next.js |
+| auth | Concern (S0) | RBAC, JWT |
+| multi-tenancy | Concern (S0) | multi-tenant, Org>Team>User |
+| resilience | Concern (S0) | fallback, circuit breaker |
+| observability | Concern (S0) | audit trails |
+| realtime | Concern (S0) | SSE streaming |
+| stream-processing | Concern (S0) | streaming proxy |
+| external-sdk | Concern (S0) | LLM provider SDKs |
+| audit-logging | Concern (S0) | audit trails |
+| compliance | Concern (S0) | EU AI Act, OWASP |
+| ai-gateway* | Archetype (A0) | LLM gateway, routing, proxy |
+| token-budget* | Concern (S0) | token budget, hierarchical |
+| prompt-guard* | Concern (S0) | prompt injection, PII masking |
+
+`*` = project-local custom modules
+
+### 2.4 Proposal Generation + Approval
+
+**Proposal CI**: 97% (Rich) → 즉시 생성
+**Feature Catalog**: 12 Features across 4 tiers (T0: 1, T1: 4, T2: 3, T3: 4)
+**User Decision**: "Approve and continue" — 수정 없이 승인
+
+### 2.5 Constitution Seed
+
+**Best Practices**: 6개 전체 채택
+**Signal-Driven Principles**: 9개 (Tenant Data Isolation, Streaming-First, Model Agnosticism 등)
+**Custom Principles**: 없음
+**User Decision**: "Approve as-is" — 수정 없이 승인
+
+### 2.6 Generated Artifacts
+
+| Artifact | Path | Content |
+|----------|------|---------|
+| sdd-state.md | specs/_global/ | Domain Profile, CI Score, Feature Progress (empty) |
+| roadmap.md | specs/_global/ | Project Overview, Feature Catalog (empty) |
+| constitution-seed.md | specs/_global/ | 9 Architecture Principles + 6 Best Practices + Tech Constraints |
+| entity-registry.md | specs/_global/ | Empty (populated during plan) |
+| api-registry.md | specs/_global/ | Empty (populated during plan) |
+| history.md | specs/ | Decision log for init session |
+
+### 2.7 Observations
+
+- **CI 97%는 매우 높은 수준**: 사전 리서치(Phase 0)를 충분히 했기 때문. 일반적인 "한 줄 아이디어" 입력 시 40-60% 대가 일반적
+- **Signal-Driven Principles**: Domain Profile에서 활성화된 모듈의 S0 키워드가 CI 차원별로 매핑되어 원칙 자동 추천. 예: `multi-tenancy` 활성 → "Tenant Data Isolation" 자동 추천
+- **Custom Module 효과**: ai-gateway, token-budget, prompt-guard의 S0 키워드가 시그널 추출에 참여하여 더 정확한 Domain Profile 구성
 
 ---
 
