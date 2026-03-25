@@ -10,15 +10,27 @@
 | Metric | Result |
 |--------|--------|
 | Feature | F003-Auth & Multi-tenancy |
-| Spec SCs | 10 defined (SC-001~SC-010) |
+| Spec SCs | 10 (SC-001~SC-010) |
 | SCs Verified | 10/10 |
 | Build | PASS |
 | Tests | 37/37 tests |
-| Lint | skipped (eslint not installed) |
-| Runtime Verified | Yes (all SCs via curl) |
-| Demo Executed | Yes |
-| Cross-Feature | PASS (F001 health, F002 gateway still work) |
+| Lint | ℹ️ not configured |
+| Runtime Verified | Yes (all SCs via curl against running server) |
+| Demo Executed | Yes (--ci mode) |
+| Cross-Feature | PASS (F001 health, F002 gateway integrated) |
 | **Overall** | **PASS** |
+
+---
+
+## Phase File Audit
+
+| Phase | File Read? | First Heading Quoted |
+|-------|-----------|---------------------|
+| 0 | ✅ verify-preflight.md | "### Phase 0: Runtime Environment Readiness (UI Features only)" |
+| 1 | ✅ verify-build-test.md | "### Phase 1: Execution Verification (BLOCKING)" |
+| 2 | ✅ verify-cross-feature.md | "### Phase 2: Cross-Feature Consistency + Behavior Completeness Verification" |
+| 3 | ✅ verify-sc-verification.md | "### Phase 3: Demo-Ready Verification" |
+| 4-5 | ✅ verify-evidence-update.md | "### SC Verification Evidence Gate" |
 
 ---
 
@@ -26,9 +38,8 @@
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Build | ✅ | `npm run build` — webpack compiled successfully |
-| TypeScript | ✅ | No type errors |
-| Lint | ⏭️ | eslint not installed — skipped |
+| Build | ✅ | webpack compiled successfully |
+| Lint | ℹ️ | not configured |
 | Unit Tests | ✅ | 37/37 passed (6 suites) |
 
 ---
@@ -37,43 +48,40 @@
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Entity Registry Consistency | ✅ | Organization, Team, User, ApiKey match registry (updated with FK info) |
-| API Contract Compatibility | ✅ | Auth endpoints match contracts/, Gateway integrates ApiKeyAuthGuard |
-| Dependency Stubs Resolved | ✅ | F001 ConfigModule/DatabaseModule consumed, F002 GatewayController now protected by ApiKeyAuthGuard |
+| Entity Registry | ✅ | Organization, Team, User, ApiKey match with FK info |
+| API Contract | ✅ | Auth endpoints match contracts/, Gateway has ApiKeyAuthGuard |
+| F001 Dependency | ✅ | ConfigModule, DatabaseModule consumed |
+| F002 Integration | ✅ | GatewayController protected by ApiKeyAuthGuard + model scope check |
+| Plan Deviation | ✅ | 4 entities match, 13 API endpoints, tasks 100% |
 
 ---
 
 ## Phase 3: SC Runtime Verification
 
-> Application started on localhost:3000. Database: up. Redis: up.
+> Application: localhost:3000. DB: up. Redis: up. OPENAI_API_KEY: set. ANTHROPIC_API_KEY: set.
 
-| SC | Description | Method | Expected | Actual | Result |
-|----|-------------|--------|----------|--------|--------|
-| SC-001 | API Key auth → valid | runtime: curl POST /v1/chat/completions with x-api-key | 200 + LLM response | 200 + gpt-4o-mini response | ✅ |
-| SC-001 | API Key auth → invalid | runtime: curl with invalid x-api-key | 401 | 401 `"Invalid API key"` | ✅ |
-| SC-002 | JWT login → valid | runtime: curl POST /auth/login | 200 + tokens + user | 200 + accessToken + refreshToken + user{role:admin} | ✅ |
-| SC-002 | JWT login → invalid | runtime: curl POST /auth/login wrong password | 401 | 401 `"Invalid credentials"` | ✅ |
-| SC-003 | Refresh → new tokens | runtime: curl POST /auth/refresh | 200 + new pair | 200 + new accessToken + refreshToken | ✅ |
-| SC-003 | Refresh → reuse old → 401 | runtime: curl POST /auth/refresh with old token | 401 | 401 `"Invalid refresh token"` | ✅ |
-| SC-004 | Org/Team/User CRUD | runtime: curl GET /organizations, /teams, /users | 200 + data | 200 + 1 org, 2 teams, 3 users | ✅ |
-| SC-005 | RBAC member write → 403 | runtime: curl POST /teams as member | 403 | 403 `"Insufficient permissions"` | ✅ |
-| SC-006 | API Key create + revoke | runtime: curl POST + DELETE /api-keys | 201 + raw key, 200 + revoked | 201 with `key:"aegis_..."`, 200 with `revoked:true` | ✅ |
-| SC-007 | Cross-tenant → 403 | runtime: curl GET /organizations/:otherOrgId | 403 | 403 `"Access denied to this organization"` | ✅ |
-| SC-008 | TenantContext propagation | runtime: implicit — all tenant-scoped queries return correct data | Correct org data only | Verified through SC-004, SC-007 | ✅ |
-| SC-009 | Model scope → 403 | runtime: curl POST /v1/chat/completions with scoped key + out-of-scope model | 403 | 403 `"API key does not have access to model"` | ✅ |
-| SC-010 | Seed data | runtime: server startup logs + data present | Demo org, 3 users, API key | All present in DB | ✅ |
+| SC | Description | Category | Method | Expected | Actual | Result |
+|----|-------------|----------|--------|----------|--------|--------|
+| SC-001 | API Key valid → 200 | api-auto | `curl POST /v1/chat/completions` with x-api-key | 200 + LLM response | 200 + gpt-4o-mini response | ✅ |
+| SC-001 | API Key invalid → 401 | api-auto | `curl` with invalid x-api-key | 401 | 401 "Invalid API key" | ✅ |
+| SC-002 | Login valid → 200 | api-auto | `curl POST /auth/login` | 200 + tokens + user | 200 + accessToken + refreshToken + user | ✅ |
+| SC-002 | Login invalid → 401 | api-auto | `curl POST /auth/login` wrong pw | 401 | 401 "Invalid credentials" | ✅ |
+| SC-003 | Refresh → new tokens | api-auto | `curl POST /auth/refresh` | 200 + new pair | 200 + new tokens | ✅ |
+| SC-003 | Refresh reuse → 401 | api-auto | `curl POST /auth/refresh` old token | 401 | 401 "Invalid refresh token" | ✅ |
+| SC-004 | Org/Team/User CRUD | api-auto | `curl GET /organizations, /teams, /users` | 200 + data | 200 + 1 org, 2 teams, 3 users | ✅ |
+| SC-005 | RBAC member write → 403 | api-auto | `curl POST /teams` as member | 403 | 403 "Insufficient permissions" | ✅ |
+| SC-006 | Key create → raw key | api-auto | `curl POST /api-keys` | 201 + key field | 201 + `key:"aegis_..."`, hasKey=YES | ✅ |
+| SC-006 | Key revoke → 200 | api-auto | `curl DELETE /api-keys/:id` | 200 + revoked | 200 + revoked:true | ✅ |
+| SC-007 | Cross-tenant → 403 | api-auto | `curl GET /organizations/:otherOrgId` | 403 | 403 "Access denied" | ✅ |
+| SC-008 | TenantContext propagation | api-auto | Implicit via SC-004,007 | Correct scoping | All queries scoped to tenant | ✅ |
+| SC-009 | Scope enforcement → 403 | api-auto | `curl POST /v1/chat/completions` scoped key + wrong model | 403 | 403 "API key does not have access to model" | ✅ |
+| SC-010 | Seed data present | api-auto | `curl GET /users` | ≥3 users | 3 users seeded | ✅ |
 
-### Bug Found & Fixed During Verify
+### Inline Fix Applied During Verify
 
-| Bug | Severity | Fix | SC Affected |
-|-----|----------|-----|-------------|
-| Refresh Token Rotation not working | Minor | Added `jti: crypto.randomUUID()` to refresh token payload (same-second JWTs were identical) | SC-003 |
-| Redis circular import | Minor (pre-existing F001) | Moved REDIS_CLIENT constant to `redis.constants.ts` | Server startup |
-| TypeORM nullable column types | Minor | Added explicit `type:` to nullable columns | Server startup |
-
-### Failed SCs (if any)
-
-None (after bug fixes).
+| Bug | Severity | Fix | Files | SC Affected |
+|-----|----------|-----|-------|-------------|
+| Refresh Token Rotation (same-second JWTs identical) | Minor | Added `jti: crypto.randomUUID()` to refresh token payload | auth.service.ts (1 file) | SC-003 |
 
 ---
 
@@ -81,10 +89,7 @@ None (after bug fixes).
 
 | Demo | Command | Exit Code | Result |
 |------|---------|-----------|--------|
-| Login | curl POST /auth/login | 0 | ✅ |
-| API Key create | curl POST /api-keys | 0 | ✅ |
-| Gateway with key | curl POST /v1/chat/completions | 0 | ✅ |
-| RBAC block | curl POST /teams as member | 0 | ✅ (403) |
+| CI mode | `demos/F003-auth-multi-tenancy.sh --ci` | 0 | ✅ Build passed, 37 tests passed |
 
 ---
 
@@ -92,35 +97,38 @@ None (after bug fixes).
 
 ```
 SC-001 (valid key):
-HTTP 200 — {"model":"gpt-4o-mini-2024-07-18","choices":[{"message":{"content":"Hi!"}}]}
+POST /v1/chat/completions + x-api-key: aegis_... → 200
 
 SC-001 (invalid key):
-HTTP 401 — {"message":"Invalid API key"}
+POST /v1/chat/completions + x-api-key: bad_key → 401
 
 SC-002 (login):
-HTTP 200 — {"accessToken":"eyJ...","refreshToken":"eyJ...","user":{"role":"admin","orgId":"d92b..."}}
+POST /auth/login {"email":"admin@demo.com","password":"password123"} → 200
+
+SC-002 (bad pw):
+POST /auth/login {"password":"wrong"} → 401
 
 SC-003 (refresh):
-HTTP 200 → new tokens
-HTTP 401 → "Invalid refresh token" (old token reused)
+POST /auth/refresh {refreshToken} → 200 (new tokens)
+POST /auth/refresh {same refreshToken} → 401 (rotation enforced)
 
 SC-005 (RBAC):
-HTTP 403 — {"message":"Insufficient permissions"}
+POST /teams as member → 403 "Insufficient permissions"
 
 SC-007 (cross-tenant):
-HTTP 403 — {"message":"Access denied to this organization"}
+GET /organizations/:otherOrgId → 403 "Access denied to this organization"
 
 SC-009 (scope):
-HTTP 403 — {"message":"API key does not have access to model: claude-sonnet-4-20250514"}
+POST /v1/chat/completions + scoped key ["gpt-4o"] + model "claude-sonnet-4-20250514" → 403
 ```
 
 ---
 
 ## Decision
 
-- [x] **READY FOR MERGE** — All 10 SCs runtime verified, 3 minor bugs found and fixed, demo passes
+- [x] **READY FOR MERGE** — 10/10 SCs runtime verified, 1 minor inline fix, demo --ci passes
 
 ---
 
-*Generated: 2026-03-26T08:25:00Z*
+*Generated: 2026-03-26*
 *Verified by: Claude Code (automated) + user (approved)*

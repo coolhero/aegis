@@ -33,17 +33,17 @@
 
 ## Feature Progress
 
-| FID | Name | Status | Tier | Phase | Branch |
-|-----|------|--------|------|-------|--------|
-| F001 | Foundation Setup | completed | T0 | verified | main |
-| F002 | LLM Gateway Core | completed | T1 | verified | main |
-| F003 | Auth & Multi-tenancy | completed | T1 | verified | main |
-| F004 | Token Budget Management | pending | T1 | pre-context | — |
-| F005 | Request Logging & Tracing | pending | T1 | pre-context | — |
-| F006 | Security Guardrails | pending | T2 | pre-context | — |
-| F007 | Admin Dashboard | pending | T2 | pre-context | — |
-| F008 | Provider Fallback & LB | pending | T2 | pre-context | — |
-| F009 | Knowledge Integration | pending | T3 | pre-context | — |
-| F010 | Prompt Management | pending | T3 | pre-context | — |
-| F011 | Semantic Cache | pending | T3 | pre-context | — |
-| F012 | Developer Playground | pending | T3 | pre-context | — |
+| FID | Name | Status | Tier | Phase | Branch | Notes |
+|-----|------|--------|------|-------|--------|-------|
+| F001 | Foundation Setup | completed | T0 | verified | main | verify-report.md generated, all SCs runtime |
+| F002 | LLM Gateway Core | completed | T1 | verified | main | verify-report.md generated, real LLM calls |
+| F003 | Auth & Multi-tenancy | completed | T1 | verified | main | verify-report.md generated, inline fix: SC-003 jti |
+| F004 | Token Budget Management | pending | T1 | pre-context | — | |
+| F005 | Request Logging & Tracing | pending | T1 | pre-context | — | |
+| F006 | Security Guardrails | pending | T2 | pre-context | — | |
+| F007 | Admin Dashboard | pending | T2 | pre-context | — | |
+| F008 | Provider Fallback & LB | pending | T2 | pre-context | — | |
+| F009 | Knowledge Integration | pending | T3 | pre-context | — | |
+| F010 | Prompt Management | pending | T3 | pre-context | — | |
+| F011 | Semantic Cache | pending | T3 | pre-context | — | |
+| F012 | Developer Playground | pending | T3 | pre-context | — | |
