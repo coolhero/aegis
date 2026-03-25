@@ -170,13 +170,76 @@ Phase 5: → Case Study finalization (EN + KO)
 
 ## Phase 1: Domain Analysis & Custom Module Creation
 
-> Status: PENDING — will be documented as /domain-extend is executed
+> Status: ✅ COMPLETED (2026-03-25)
 
-### Expected Custom Modules
+### 1.1 Gap Analysis Process
 
-#### 1. ai-gateway (Archetype)
-- **A1**: Provider Abstraction, Streaming-First, Token-Aware Routing, Fail-Open Transparency, Audit Everything
-- **A2**: Provider switching, Budget enforcement, Streaming proxy, Multi-tenant isolation, Graceful degradation
+**Method**: Description-based detection (no code, no sdd-state.md — greenfield project)
+
+**Input**: AEGIS 프로젝트 설명을 `_taxonomy.md`의 58개 Concern + 14개 Archetype + 10개 Interface 모듈과 대조
+
+**Coverage Results**:
+- **12개 Built-in 모듈**: 직접 매핑됨 (auth, authorization, multi-tenancy, resilience, observability, realtime, stream-processing, external-sdk, audit-logging, compliance, llm-agents, content-moderation)
+- **3개 Gap 발견**: AEGIS 고유 패턴이 기존 모듈로 커버 불가
+
+| Gap | Closest Module | Similarity | Gap Reason |
+|-----|---------------|------------|------------|
+| AI Gateway 라우팅 | ai-assistant (15%) | LLM 소비자 vs 관리자 관점 차이 |
+| 계층적 토큰 예산 | resilience (20%) | flat rate-limit vs 계층적 토큰+비용 |
+| 프롬프트 보안 | content-moderation (25%) | UGC 리뷰 큐 vs 인라인 LLM 보안 |
+
+### 1.2 Custom Module Creation (via /domain-extend extend)
+
+#### Module 1: ai-gateway (Archetype)
+- **File**: `specs/domains/archetypes/ai-gateway.md`
+- **A0 Keywords**: 10 primary (LLM gateway, AI gateway, LLM proxy...) + 10 secondary
+- **A1 Principles**: 5개
+  1. Provider Abstraction — 통합 인터페이스, 직접 SDK 호출 금지
+  2. Streaming-First — SSE 토큰 단위 프록시, 버퍼링 금지
+  3. Token-Aware Routing — 예산 기반 라우팅 결정
+  4. Multi-tenant Isolation — 테넌트별 완전 격리
+  5. Audit Everything — 포렌식 수준 로깅
+- **A2 SC Rules**: 5 required patterns + 4 anti-patterns
+- **A3 Probes**: 6 sub-domains
+- **A4 Constitution**: 5 principles
+- **A5 Completion**: 5 criteria
+- **S7 Failures**: AG-001~005 (cascade, streaming mismatch, tenant bypass, race condition, fallback loop)
+
+#### Module 2: token-budget (Concern)
+- **File**: `specs/domains/concerns/token-budget.md`
+- **S0 Keywords**: 10 primary + 12 secondary
+- **S1 SC Rules**: 5 required patterns (budget check flow, deduction atomicity, hierarchy, reset, alerts) + 4 anti-patterns
+- **S5 Probes**: 6 sub-domains (granularity, metric, reset, hard/soft, carryover, emergency)
+- **S7 Failures**: TB-001~005 (race condition, retry double-charge, streaming drift, reset race, hierarchy bypass)
+- **S9 Criteria**: 4 required elements
+
+#### Module 3: prompt-guard (Concern)
+- **File**: `specs/domains/concerns/prompt-guard.md`
+- **S0 Keywords**: 10 primary + 12 secondary
+- **S1 SC Rules**: 5 required patterns (PII input/output, injection, content filter, privileged bypass) + 4 anti-patterns
+- **S5 Probes**: 6 sub-domains (PII scope, action, injection defense, categories, false positives, audit)
+- **S7 Failures**: PG-001~005 (mask-then-log, system prompt injection, partial PII streaming, encoding bypass, output filter race)
+- **S9 Criteria**: 4 required elements
+
+### 1.3 Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| ai-gateway를 archetype으로 분류 (concern 아님) | Gateway는 프로젝트의 핵심 정체성. concern은 횡단 관심사지만 gateway는 시스템 아키타입 |
+| token-budget을 resilience와 분리 | resilience는 일반적 장애 복원. Token budget은 LLM 특화 계층적 예산으로 S7 failure mode가 완전히 다름 |
+| prompt-guard를 content-moderation과 분리 | content-moderation은 비동기 리뷰 큐. prompt-guard는 <100ms 인라인 처리 + LLM 특화 (인코딩 우회, 스트리밍 PII) |
+| 프로젝트 로컬 모듈 (spec-kit 내장 아님) | AEGIS 전용 패턴. 범용성이 검증되면 추후 `--skill`로 기여 가능 |
+
+### 1.4 Execution Plan Update
+
+```
+Phase 0: ✅ Market Research & Ideation
+Phase 1: ✅ git init, CLAUDE.md, /domain-extend (3 custom modules)
+Phase 2: → /smart-sdd init (Proposal Mode)
+Phase 3: → /smart-sdd add (Feature definitions)
+Phase 4: → /smart-sdd pipeline (T0+T1 Features)
+Phase 5: → Case Study finalization (EN + KO)
+```
 - **A3**: 6 probes (Providers, Routing, Streaming, Budget, Audit, SLA)
 - **A4**: 5 constitution principles
 - **A5**: 5 brief criteria
