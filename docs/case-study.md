@@ -1,0 +1,220 @@
+# AEGIS Case Study: Enterprise AI Support Platform
+## spec-kit-skills Greenfield Workflow — Full Process Record
+
+> **Project**: AEGIS (AI Enterprise Gateway & Intelligence System)
+> **Type**: Greenfield
+> **Started**: 2026-03-25
+> **Tool**: spec-kit-skills (smart-sdd + domain-extend)
+> **Author**: coolhero
+
+---
+
+## Table of Contents
+
+1. [Phase 0: Ideation & Market Research](#phase-0-ideation--market-research)
+2. [Phase 1: Domain Analysis & Custom Module Creation](#phase-1-domain-analysis--custom-module-creation)
+3. [Phase 2: Project Initialization (smart-sdd init)](#phase-2-project-initialization)
+4. [Phase 3: Feature Definition (smart-sdd add)](#phase-3-feature-definition)
+5. [Phase 4: Pipeline Execution (smart-sdd pipeline)](#phase-4-pipeline-execution)
+6. [Appendix: Skill Feedback Log](#appendix-skill-feedback-log)
+
+---
+
+## Phase 0: Ideation & Market Research
+
+### 0.1 Project Vision
+
+**한 줄 요약**: 기업이 LLM을 안전하고 효율적으로 사용할 수 있게 해주는 셀프호스팅 가능한 AI 게이트웨이 플랫폼
+
+**Problem Statement**:
+- 기업들이 LLM API를 도입하려 하지만, 보안(프롬프트 인젝션, PII 유출), 비용 관리(팀별/사용자별 토큰 예산), 내부 지식 통합(RAG 성능 문제) 등의 문제로 도입이 지연되고 있음
+- 기존 솔루션들은 게이트웨이(LiteLLM, Portkey), 보안(LLM Guard), 관찰성(Langfuse) 등 개별 영역만 해결하며, 이를 조합하려면 상당한 엔지니어링 노력이 필요
+
+**Solution**: 하나의 셀프호스팅 플랫폼으로 LLM 라우팅 + 멀티테넌시 + 보안 가드레일 + 지식 통합 + 거버넌스를 통합 제공
+
+### 0.2 Competitive Landscape (2026-03-25 기준)
+
+#### 오픈소스 게이트웨이
+
+| Solution | Strengths | Weaknesses | Stars |
+|----------|-----------|------------|-------|
+| **LiteLLM** | 100+ 프로바이더, 완전 오픈소스 | 메모리 누수, 대규모 레이턴시 이슈 | 18K+ |
+| **Helicone** | Rust 기반 8ms P50, 우수한 관찰성 | 거버넌스/보안 약함 | - |
+| **Bifrost** | <11μs 오버헤드, LiteLLM 대비 50x 빠름 | 프로바이더 20개로 제한 | - |
+
+#### 상용 솔루션
+
+| Solution | Pricing | Key Feature | Limitation |
+|----------|---------|-------------|------------|
+| **Portkey** | $49/mo+ | 1,600+ LLM, 거버넌스 | 제한된 셀프호스팅 |
+| **Kong AI Gateway** | Enterprise | Portkey 대비 65% 낮은 레이턴시 | AI 특화 기능 부족 |
+| **TrueFoundry** | Enterprise | 4-tier 계층적 예산 | 지식 통합 없음 |
+
+#### 시장 Gap 분석
+
+```
+현재 시장에서 어떤 단일 플랫폼도 다음을 모두 제공하지 않음:
+  ✗ 고성능 LLM 라우팅
+  ✗ 멀티테넌트 비용 격리
+  ✗ 보안 가드레일 (OWASP LLM Top 10)
+  ✗ 기업 내부 지식 통합
+  ✗ 셀프호스팅 가능
+
+→ AEGIS의 포지셔닝: 이 5가지를 단일 오픈소스 플랫폼으로 제공
+```
+
+### 0.3 Knowledge Integration Trends (RAG 이후)
+
+| Approach | Maturity | Accuracy | Cost | Best For |
+|----------|----------|----------|------|----------|
+| **Naive RAG** | Dead | 60-75% | Low | ❌ 프로덕션 부적합 |
+| **Agentic RAG** | Production | 85-95% | Medium | 복합 질의, 다단계 추론 |
+| **GraphRAG** | Experimental | 60-85% | 3-5x | 관계 추론 (조직도, 규정) |
+| **MCP Tool Use** | Standard | N/A | Low | 실시간 구조화 데이터 |
+| **Long Context** | Production | 90%+ | High | 소규모 코퍼스 직접 주입 |
+
+**AEGIS 전략: Hybrid Router**
+- 쿼리 타입에 따라 Agentic RAG / MCP / Long Context 중 최적 전략 자동 선택
+- MCP가 2026년 사실상 표준 ("AI의 USB-C") — OpenAI, Microsoft, Anthropic 모두 채택
+- GraphRAG는 T3 (향후 확장)로 분류
+
+### 0.4 Security Landscape (OWASP LLM Top 10, 2025)
+
+| # | Category | Severity | AEGIS 대응 |
+|---|----------|----------|-----------|
+| LLM01 | Prompt Injection | Critical | Input scanner + 시스템 프롬프트 격리 |
+| LLM02 | Sensitive Data Disclosure | High | PII 마스킹 (input/output) |
+| LLM03 | Supply Chain Vulnerabilities | High | 모델 허용 목록 |
+| LLM05 | Improper Output Handling | High | Output validator |
+| LLM06 | Excessive Agency | Medium | Per-tenant agency 제어 |
+| LLM07 | System Prompt Leakage | Medium | 시스템 프롬프트 분리 저장 |
+| LLM10 | Unbounded Consumption | Medium | Token budget 강제 |
+
+**방어 아키텍처**: Multi-layered (Input Scanner → LLM → Output Validator)
+- 오픈소스 기반: LLM Guard (MIT, 15 input/20 output scanners)
+- 선택적 강화: Lakera Guard (98%+ 탐지율, 50ms 미만)
+
+### 0.5 Enterprise Governance
+
+**EU AI Act**: 2026년 8월 2일 고위험 조항 전면 적용 — 5개월 남음
+- 위반 시 3,500만 EUR 또는 글로벌 매출 7% 벌금
+- 기업들이 이미 EU AI Act 준수 기준으로 벤더 평가 중
+
+**필수 거버넌스 요소**:
+1. **감사 추적**: 모든 LLM 인터랙션의 전체 의사결정 계보 기록
+2. **접근 제어**: RBAC + 팀별 모델 접근 정책
+3. **비용 귀속**: 멀티테넌트 비용 추적 (Org > Team > Project > User)
+4. **데이터 보호**: 데이터 최소화, 보존 정책, 옵트아웃
+5. **관찰성**: Langfuse (MIT, 19K+ stars, 셀프호스팅) 기반
+
+### 0.6 Architecture Decisions
+
+#### Tech Stack
+
+| Layer | Choice | Reason |
+|-------|--------|--------|
+| Language | **TypeScript** | 프론트엔드/백엔드 통합, 타입 안전성 |
+| Backend | **NestJS** | 엔터프라이즈급 DI, 모듈 시스템, Guards/Interceptors |
+| DB | **PostgreSQL + pgvector** | 관계형 + 벡터 검색 통합 |
+| Cache | **Redis** | 세션, 토큰 한도, 시맨틱 캐시 |
+| Queue | **BullMQ** | 비동기 작업 (임베딩 생성, 로깅) |
+| Frontend | **Next.js** | 관리 대시보드, 플레이그라운드 |
+| Observability | **Langfuse** | 오픈소스 LLM 관찰성 |
+
+#### Feature Tiers
+
+| Tier | Features | Priority |
+|------|----------|----------|
+| **T0** | Foundation Setup (NestJS + PostgreSQL + Redis) | Base |
+| **T1** | LLM Gateway Core, Auth & Multi-tenancy, Token Budget, Request Logging | MVP |
+| **T2** | Knowledge Integration, Security Guardrails, Admin Dashboard, Fallback/LB | Phase 2 |
+| **T3** | Prompt Management, Semantic Cache, Developer Playground | Phase 3 |
+
+### 0.7 Domain Profile (for spec-kit-skills)
+
+```yaml
+Interfaces:  [http-api, gui]
+Concerns:    [auth, multi-tenancy, resilience, observability,
+              realtime, stream-processing, external-sdk,
+              token-budget*, prompt-guard*]
+Archetype:   [ai-gateway*]
+Foundation:  typescript + nestjs
+Context:     greenfield | mvp × small-team
+
+# * = custom modules (spec-kit 내장 모듈에 없음 → /domain-extend로 생성 필요)
+```
+
+**Custom Module 필요성 분석**:
+
+1. **ai-gateway** (Archetype): 내장 `ai-assistant`는 "LLM 소비자" 관점. AEGIS는 "LLM 관리자" 관점 필요
+   - Provider Abstraction, Streaming-First, Token-Aware Routing, Multi-tenant Isolation
+
+2. **token-budget** (Concern): 내장 `resilience`는 flat rate-limit. AEGIS는 계층적 예산 필요
+   - Org > Team > User 계층, tokens+cost 이중 추적, hard/soft limit
+
+3. **prompt-guard** (Concern): LLM 보안은 일반 보안과 다름
+   - PII 순서, 인코딩 우회, 스트리밍 필터 타이밍
+
+### 0.8 Execution Plan
+
+```
+Phase 0: ✅ Market Research & Ideation (this document)
+Phase 1: → git init, CLAUDE.md, /domain-extend (3 custom modules)
+Phase 2: → /smart-sdd init (Proposal Mode)
+Phase 3: → /smart-sdd add (Feature definitions)
+Phase 4: → /smart-sdd pipeline (T0+T1 Features)
+Phase 5: → Case Study finalization (EN + KO)
+```
+
+---
+
+## Phase 1: Domain Analysis & Custom Module Creation
+
+> Status: PENDING — will be documented as /domain-extend is executed
+
+### Expected Custom Modules
+
+#### 1. ai-gateway (Archetype)
+- **A1**: Provider Abstraction, Streaming-First, Token-Aware Routing, Fail-Open Transparency, Audit Everything
+- **A2**: Provider switching, Budget enforcement, Streaming proxy, Multi-tenant isolation, Graceful degradation
+- **A3**: 6 probes (Providers, Routing, Streaming, Budget, Audit, SLA)
+- **A4**: 5 constitution principles
+- **A5**: 5 brief criteria
+
+#### 2. token-budget (Concern)
+- **S1**: Budget check flow, deduction atomicity, reset, alerts, hierarchy
+- **S5**: 6 probes (Granularity, metric, reset, hard/soft, carryover, emergency)
+- **S7**: TB-001~005 (race condition, retry double-charge, streaming count, reset timing, hierarchy bypass)
+
+#### 3. prompt-guard (Concern)
+- **S1**: PII detection, injection detection, content filtering, privileged bypass
+- **S5**: 6 probes (PII scope, action, injection defense, categories, false positives, audit)
+- **S7**: PG-001~005 (mask-then-log, system prompt injection, partial PII, encoding bypass, output filter race)
+
+---
+
+## Phase 2: Project Initialization
+
+> Status: PENDING — will be documented as /smart-sdd init is executed
+
+---
+
+## Phase 3: Feature Definition
+
+> Status: PENDING — will be documented as /smart-sdd add is executed
+
+---
+
+## Phase 4: Pipeline Execution
+
+> Status: PENDING — will be documented as /smart-sdd pipeline is executed
+
+---
+
+## Appendix: Skill Feedback Log
+
+> Issues encountered during the process will be logged here and in `docs/skill-feedback.md`
+
+---
+
+*Last updated: 2026-03-25*
