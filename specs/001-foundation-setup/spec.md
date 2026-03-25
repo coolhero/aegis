@@ -1,68 +1,135 @@
-# Specification: F001 — Foundation Setup
+# Feature Specification: F001 — Foundation Setup
 
-## Overview
+**Feature Branch**: `001-foundation-setup`
+**Created**: 2025-03-25
+**Status**: Implemented
+**Input**: AEGIS platform foundation infrastructure — NestJS monorepo, PostgreSQL, Redis, Docker Compose, health check, env management
 
-AEGIS 플랫폼의 기반 인프라를 구성하는 Foundation Feature. NestJS 모노레포 프로젝트 구조, PostgreSQL/Redis 연결, Docker Compose 로컬 개발 환경, 헬스체크 엔드포인트, 환경변수 관리를 포함.
+## User Scenarios & Testing *(mandatory)*
 
-## Functional Requirements
+### User Story 1 - One-Command Local Environment (Priority: P1)
 
-### FR-001: NestJS Monorepo 프로젝트 구조
-NestJS CLI 기반 monorepo 구조를 설정한다. `apps/api` (백엔드 서버)와 `libs/common` (공유 모듈)으로 구성한다.
+A backend developer joins the AEGIS project and needs to stand up the entire development environment with minimal steps. They clone the repo, run `docker compose up -d` and `npm run start:dev`, and have a fully working local stack with PostgreSQL, Redis, and the NestJS API server.
 
-### FR-002: PostgreSQL 데이터베이스 연결
-TypeORM을 사용하여 PostgreSQL에 연결한다. 마이그레이션 파일 기반 스키마 관리를 적용한다. (auto-sync는 개발 환경에서만 허용)
+**Why this priority**: Without a working local environment, no other feature can be developed or tested. This is the absolute foundation.
 
-### FR-003: Redis 연결
-`ioredis`를 사용하여 Redis에 연결한다. 연결 실패 시 앱은 기동되되, Redis 의존 기능은 비활성화된다 (graceful degradation).
+**Independent Test**: Run `docker compose up -d && npm install && npm run start:dev`, then `curl localhost:3000/health` returns 200 with `status: "ok"`.
 
-### FR-004: Docker Compose 로컬 환경
-`docker-compose.yml`로 PostgreSQL, Redis, App 서비스를 정의한다. `docker compose up` 원커맨드로 전체 환경을 기동할 수 있다.
+**Acceptance Scenarios**:
 
-### FR-005: Health Check 엔드포인트
-`GET /health` 엔드포인트를 제공한다. 각 컴포넌트(DB, Redis)의 개별 상태와 전체 상태를 JSON으로 반환한다.
+1. **Given** a fresh clone of the repository, **When** the developer runs `cp .env.example .env && docker compose up -d && npm install && npm run start:dev`, **Then** the NestJS application starts without errors and listens on port 3000.
+2. **Given** the application is running, **When** the developer sends `GET /health`, **Then** the response is `200 OK` with `{ "status": "ok", "components": { "db": "up", "redis": "up" } }`.
+3. **Given** the Docker Compose file, **When** `docker compose up -d` is executed, **Then** PostgreSQL (port 5432) and Redis (port 6379) containers are running and healthy.
 
-### FR-006: 환경변수 관리
-`@nestjs/config`와 `class-validator`를 사용하여 환경변수를 타입 안전하게 관리한다. 필수 변수 누락 시 앱 기동을 실패시킨다.
+---
 
-### FR-007: 공통 모듈
-Logger (structured JSON), Exception Filter (표준 에러 응답), Response Interceptor (표준 응답 래핑)를 libs/common에 구현한다.
+### User Story 2 - Health Monitoring (Priority: P2)
 
-## Success Criteria
+A DevOps engineer needs to monitor the health of the AEGIS API and its dependencies. The `GET /health` endpoint reports the individual status of each infrastructure component (DB, Redis) and an overall status, enabling integration with monitoring dashboards and load balancer health checks.
 
-### SC-001: 프로젝트 빌드 성공
-`npm run build` 명령이 에러 없이 완료된다. TypeScript 컴파일 에러가 없다.
+**Why this priority**: Health monitoring is critical for production readiness and debugging infrastructure issues during development.
 
-### SC-002: PostgreSQL 연결 확인
-앱 기동 시 PostgreSQL에 연결되고, `GET /health`에서 `db: "up"` 상태를 반환한다.
+**Independent Test**: Start the app, stop Redis, verify `/health` returns `"degraded"`. Stop PostgreSQL, verify `/health` returns 503.
 
-### SC-003: Redis 연결 확인
-앱 기동 시 Redis에 연결되고, `GET /health`에서 `redis: "up"` 상태를 반환한다.
+**Acceptance Scenarios**:
 
-### SC-004: Redis Graceful Degradation
-Redis가 미기동 상태에서 앱이 정상 기동된다. `GET /health`에서 `redis: "down"`, `overall: "degraded"` 상태를 반환한다.
+1. **Given** all infrastructure is healthy, **When** `GET /health` is called, **Then** response is `200` with `status: "ok"`, `db: "up"`, `redis: "up"`.
+2. **Given** Redis is stopped but PostgreSQL is running, **When** `GET /health` is called, **Then** response is `200` with `status: "degraded"`, `db: "up"`, `redis: "down"`.
+3. **Given** PostgreSQL is stopped, **When** `GET /health` is called, **Then** response is `503` with `status: "error"`, `db: "down"`.
+4. **Given** both PostgreSQL and Redis are stopped, **When** `GET /health` is called, **Then** response is `503` with `status: "error"`, `db: "down"`, `redis: "down"`.
 
-### SC-005: Docker Compose 원커맨드 기동
-`docker compose up -d` 명령으로 postgres, redis, app 컨테이너가 모두 기동된다. `curl localhost:3000/health`가 200을 반환한다.
+---
 
-### SC-006: 환경변수 검증
-필수 환경변수(`DATABASE_URL`, `REDIS_URL`) 누락 시 앱이 기동 실패하고 명확한 에러 메시지를 출력한다.
+### User Story 3 - Fail-Fast Environment Validation (Priority: P3)
 
-### SC-007: 공통 모듈 동작
-에러 발생 시 Exception Filter가 표준 JSON 에러 응답(`{ statusCode, message, error }`)을 반환한다.
+A developer misconfigures their `.env` file (missing required variables or invalid values). The application must refuse to start immediately with a clear, actionable error message listing all invalid/missing variables, rather than failing at runtime with cryptic connection errors.
 
-### SC-008: 마이그레이션 실행
-`npm run migration:run` 명령으로 TypeORM 마이그레이션이 정상 실행된다.
+**Why this priority**: Prevents debugging time wasted on runtime errors caused by misconfiguration. Improves developer experience.
+
+**Independent Test**: Remove `DATABASE_HOST` from `.env`, run `npm run start:dev`, verify it fails immediately with a message mentioning the missing variable.
+
+**Acceptance Scenarios**:
+
+1. **Given** `.env` is missing `DATABASE_HOST`, **When** the app starts, **Then** it fails immediately with an error message containing `"DATABASE_HOST"`.
+2. **Given** `.env` has `DATABASE_PORT=not_a_number`, **When** the app starts, **Then** it fails immediately with a validation error for `DATABASE_PORT`.
+3. **Given** all required variables are present and valid, **When** the app starts, **Then** it boots successfully without validation errors.
+
+---
+
+### User Story 4 - Common Error Handling (Priority: P4)
+
+The API returns consistent, structured error responses across all endpoints. When an unhandled exception occurs, the global exception filter catches it and returns a standardized JSON error format. All successful responses are wrapped in a consistent envelope by the response interceptor.
+
+**Why this priority**: Consistency in API responses is essential for frontend integration and API consumers in later features.
+
+**Independent Test**: Trigger a 404 by calling a non-existent endpoint, verify the response matches `{ statusCode, message, error }` format.
+
+**Acceptance Scenarios**:
+
+1. **Given** a request to a non-existent endpoint, **When** the server processes it, **Then** the response is `{ "statusCode": 404, "message": "Cannot GET /unknown", "error": "Not Found" }`.
+2. **Given** an endpoint throws an `HttpException`, **When** the exception filter processes it, **Then** the response has the correct status code and structured JSON error body.
+3. **Given** a successful response from any endpoint, **When** the response interceptor processes it, **Then** the response body is wrapped in the standard envelope format.
+
+---
+
+### Edge Cases
+
+- What happens when PostgreSQL is unreachable at startup? App should still start (to serve health endpoint), but DB-dependent features fail gracefully.
+- What happens when Redis reconnects after being down? `RedisService` should auto-reconnect via ioredis retry strategy and health status should return to `"up"`.
+- What happens when `.env` file is completely missing? `@nestjs/config` falls back to process environment variables. If those are also missing, validation fails.
+- What happens when Docker Compose is run without prior `docker compose down` (orphan containers)? Compose handles this — existing containers are reused.
+- What happens when the database port is occupied by another service? Docker Compose fails with a clear port-binding error.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+- **FR-001**: System MUST provide a NestJS monorepo structure with `apps/api` (backend server) and `libs/common` (shared modules).
+- **FR-002**: System MUST connect to PostgreSQL via TypeORM with migration-based schema management. Auto-sync is allowed only in development.
+- **FR-003**: System MUST connect to Redis via `ioredis`. Connection failure MUST NOT prevent app startup (graceful degradation).
+- **FR-004**: System MUST provide a `docker-compose.yml` that starts PostgreSQL and Redis with a single `docker compose up -d` command.
+- **FR-005**: System MUST expose `GET /health` returning individual component status (DB, Redis) and overall status as JSON.
+- **FR-006**: System MUST validate environment variables at startup using `@nestjs/config` and `class-validator`. Missing required variables MUST prevent startup with clear error messages.
+- **FR-007**: System MUST provide shared modules in `libs/common`: structured JSON logger, global HTTP exception filter, response interceptor.
+
+### Key Entities
+
+- **AppConfig**: Key-value configuration store. Attributes: `id` (UUID), `key` (string, unique per environment), `value` (text), `environment` (string), `createdAt`, `updatedAt`.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: `npm run build` completes without TypeScript compilation errors.
+- **SC-002**: `GET /health` returns `db: "up"` when PostgreSQL is connected.
+- **SC-003**: `GET /health` returns `redis: "up"` when Redis is connected.
+- **SC-004**: With Redis stopped, app starts successfully and `GET /health` returns `status: "degraded"`, `redis: "down"`.
+- **SC-005**: `docker compose up -d` starts postgres and redis containers; `curl localhost:3000/health` returns 200.
+- **SC-006**: Removing required env vars (`DATABASE_HOST`) causes app startup failure with an error message listing the missing variable.
+- **SC-007**: Unhandled exceptions return structured JSON error `{ statusCode, message, error }`.
+- **SC-008**: `npm run migration:run` executes TypeORM migrations without errors.
+
+## Assumptions
+
+- Node.js 20+ is installed on the developer's machine.
+- Docker and Docker Compose v2 are available for local infrastructure.
+- PostgreSQL 16 and Redis 7 are the target versions.
+- The application runs outside Docker during development (hot-reload via `nest start --watch`), while infrastructure runs in Docker.
+- CI/CD pipeline configuration is out of scope for F001.
+- Authentication and authorization are deferred to F003.
+- Production deployment configuration (Kubernetes, cloud services) is out of scope.
 
 ## Scope Boundaries
 
 ### In Scope
-- NestJS monorepo 구조 (apps/api + libs/common)
-- PostgreSQL + Redis 연결 모듈
-- Docker Compose 로컬 환경
-- Health check, 환경변수 관리, 공통 모듈
+- NestJS monorepo structure (`apps/api` + `libs/common`)
+- PostgreSQL + Redis connection modules
+- Docker Compose local development environment
+- Health check endpoint, environment variable management, common modules (logger, filter, interceptor)
 
 ### Out of Scope
-- 인증/인가 (F003)
-- LLM 관련 기능 (F002)
-- CI/CD 파이프라인 구성
-- 프로덕션 배포 설정
+- Authentication/authorization (F003)
+- LLM gateway functionality (F002)
+- CI/CD pipeline configuration
+- Production deployment setup
+- Admin dashboard (F007)
