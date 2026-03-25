@@ -11,6 +11,8 @@ describe('EnvironmentVariables validation', () => {
     REDIS_PORT: '6379',
     PORT: '3000',
     NODE_ENV: 'development',
+    JWT_SECRET: 'test-jwt-secret-key-min-32-chars-long',
+    JWT_REFRESH_SECRET: 'test-refresh-secret-key-min-32-chars',
   };
 
   it('should pass with all valid environment variables', () => {
@@ -34,6 +36,8 @@ describe('EnvironmentVariables validation', () => {
       DATABASE_PASSWORD: 'aegis_dev',
       DATABASE_NAME: 'aegis',
       NODE_ENV: 'development',
+      JWT_SECRET: 'test-jwt-secret',
+      JWT_REFRESH_SECRET: 'test-refresh-secret',
     };
 
     const result = validate(minimalEnv);
@@ -42,6 +46,8 @@ describe('EnvironmentVariables validation', () => {
     expect(result.REDIS_HOST).toBe('localhost');
     expect(result.REDIS_PORT).toBe(6379);
     expect(result.PORT).toBe(3000);
+    expect(result.JWT_EXPIRATION).toBe('15m');
+    expect(result.JWT_REFRESH_EXPIRATION).toBe('7d');
   });
 
   it('should fail when DATABASE_HOST is missing', () => {
@@ -79,5 +85,17 @@ describe('EnvironmentVariables validation', () => {
       const result = validate({ ...validEnv, NODE_ENV: env });
       expect(result.NODE_ENV).toBe(env);
     }
+  });
+
+  it('should fail when JWT_SECRET is missing', () => {
+    const { JWT_SECRET: _, ...envWithout } = validEnv;
+
+    expect(() => validate(envWithout)).toThrow();
+  });
+
+  it('should fail when JWT_REFRESH_SECRET is missing', () => {
+    const { JWT_REFRESH_SECRET: _, ...envWithout } = validEnv;
+
+    expect(() => validate(envWithout)).toThrow();
   });
 });

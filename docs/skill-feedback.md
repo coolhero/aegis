@@ -113,4 +113,191 @@ F003, F004, F005를 3개의 background agent로 동시에 구현 시도. pipelin
 
 ---
 
-*Last updated: 2026-03-25*
+## P4: Feature Branch 관리 누락 — pipeline pre-flight/merge 규칙 미준수
+
+**발견 시점**: 2026-03-25, F003 pipeline analyze 단계에서 사용자 피드백
+**심각도**: MEDIUM
+**상태**: F003에서 부분 수정 (브랜치 생성은 했으나 speckit.specify 스크립트 미사용)
+
+### 증상
+
+1. **F001, F002**: feature branch 없이 `main`에 직접 커밋됨. pipeline의 `pre-flight → Create Feature branch` + `merge → Merge Feature branch to main` 규칙 완전 무시.
+2. **F003**: `git checkout -b 003-auth-multi-tenancy`로 수동 브랜치 생성은 했으나, `speckit.specify`의 `create-new-feature.sh` 스크립트를 건너뜀.
+
+### 위반된 규칙
+
+1. **pipeline.md line 929**: `0. pre-flight → Ensure on main branch (clean state) → Create Feature branch {NNN}-{short-name}`
+2. **pipeline.md line 937**: `7. merge → Merge Feature branch to main → Cleanup`
+3. **speckit.specify.md Outline #2**: `Create the feature branch by running the script with --short-name`
+
+### 원인 분석
+
+1. **pre-flight 브랜치 생성과 speckit.specify 스크립트의 브랜치 생성이 중복**: pipeline.md는 pre-flight에서 브랜치를 만들라 하고, speckit.specify도 `create-new-feature.sh`로 브랜치를 만들라 함. 어느 것을 따라야 하는지 혼동.
+2. **`smart-sdd add`에서 이미 spec 디렉토리 생성**: `add` 단계에서 `specs/003-auth-multi-tenancy/pre-context.md`가 이미 존재 → `create-new-feature.sh`가 중복 디렉토리를 만들 것으로 판단해 건너뜀.
+3. **F001/F002에서 브랜치 관리 자체를 누락**: 이전 세션에서 pipeline pre-flight를 수행하지 않았고, 이 패턴이 관성으로 계속됨.
+
+### 실제 영향
+
+- **코드 안전성**: feature branch 없이 main에 직접 커밋하면 verify 실패 시 롤백이 어려움
+- **merge 단계 무의미**: 브랜치가 없으니 merge 단계를 수행할 수 없음
+- **Case Study 완성도**: branch-per-Feature 워크플로우가 spec-kit의 핵심 가치인데 이를 보여주지 못함
+
+### 해결 방안
+
+1. **F003**: 이미 `003-auth-multi-tenancy` 브랜치에서 작업 중 — implement 완료 후 main으로 merge
+2. **F004 이후**: pipeline pre-flight에서 `create-new-feature.sh` 또는 `git checkout -b`로 반드시 feature branch 생성
+3. **smart-sdd add와 speckit.specify의 중복 해소 필요**: add에서 이미 디렉토리가 존재할 때 `create-new-feature.sh`의 동작을 어떻게 처리할지 스킬 차원에서 명확화 필요
+
+### 교훈
+
+> **pipeline의 pre-flight 브랜치 관리는 선택이 아닌 필수이다.**
+> `add`에서 디렉토리가 이미 존재하더라도 feature branch는 반드시 생성해야 한다.
+> `speckit.specify`의 `create-new-feature.sh`와 pipeline pre-flight의 중복은 스킬 설계 이슈로, 어느 한쪽으로 통일이 필요하다.
+
+---
+
+## P5: verify 단계 런타임 검증 미수행 — SC 검증이 단위 테스트에 그침
+
+**발견 시점**: 2026-03-26, F003 verify 단계에서 사용자 피드백
+**심각도**: HIGH
+**상태**: 발견 즉시 기록, F003에서 수정 진행
+
+### 증상
+
+F003 verify 단계에서 `npm run build` + `npm test` (단위 테스트)만 수행하고, 실제 서버를 기동하여 API 엔드포인트를 호출하는 런타임 SC 검증을 수행하지 않음. verify Phase 2(SC 검증)를 단위 테스트 통과 여부로 대체한 것.
+
+구체적으로:
+- `POST /auth/login` 실제 호출 → JWT 토큰 수신 확인 ❌
+- 수신한 토큰으로 보호 API 접근 확인 ❌
+- API Key로 `POST /v1/chat/completions` 인증 확인 ❌
+- Cross-tenant 격리 런타임 확인 ❌
+- RBAC (admin/member/viewer) 접근 차이 런타임 확인 ❌
+- Demo script `--ci` 모드 실행 ❌
+
+### 원인 분석
+
+1. **verify의 범위를 축소 해석**: "build + test pass = 검증 완료"로 단순화. pipeline의 verify-phases.md에서 요구하는 Phase 2(SC별 런타임 검증)와 Phase 3(데모 검증)를 건너뜀.
+2. **인프라 의존성 회피**: 런타임 검증은 PostgreSQL, Redis가 실행 중이어야 함. Docker Compose 기동 여부를 확인하지 않고 스킵.
+3. **시간 절약 의도**: 단위 테스트가 통과하면 런타임도 동작할 것이라는 가정. 단위 테스트의 mock과 실제 DB 동작은 다를 수 있음.
+4. **P2 (verify 완전 스킵)의 반복**: P2에서 "verify 필수 수행"을 교훈으로 기록했지만, 이번에는 verify를 수행하긴 했으나 피상적으로 수행.
+
+### 실제 영향
+
+- **SC-001~SC-010 중 어느 것도 실제 환경에서 검증되지 않음**: TypeORM 엔티티가 실제 PostgreSQL에서 테이블을 올바르게 생성하는지, bcrypt 해싱이 실제로 동작하는지, JWT 토큰이 실제로 검증되는지 확인 불가
+- **SeedService의 onModuleInit이 정상 동작하는지 확인 불가**: 데모 데이터가 실제로 생성되는지 런타임에서만 확인 가능
+- **데모 스크립트가 동작하는지 확인 불가**: 작성만 하고 실행하지 않음
+
+### 해결 방안
+
+1. **Docker Compose 기동 확인**: verify 시작 시 `docker compose ps`로 인프라 상태 확인
+2. **실제 서버 기동**: `npm run start:dev` 또는 별도 테스트 서버 기동
+3. **SC별 curl/HTTP 검증**: 각 SC에 대해 실제 API 호출 + 응답 코드/본문 확인
+4. **Demo script --ci 실행**: 최소한 CI 모드로 데모 스크립트가 성공하는지 확인
+5. **검증 실패 시 구현으로 돌아가기**: 런타임 검증 실패 항목 발견 시 implement로 되돌아가 수정
+
+### 교훈
+
+> **단위 테스트 통과 ≠ 런타임 검증 완료.**
+> verify Phase 2는 실제 서버+DB 환경에서 SC를 검증하는 것이다.
+> 인프라가 없으면 인프라를 기동하거나 사용자에게 기동을 요청해야 한다.
+> "빌드+테스트 통과"만으로 verify를 통과시키면 P2와 동일한 실수를 반복하는 것이다.
+
+---
+
+## P6: verify 런타임 검증 불완전 — SC 일부만 런타임, 나머지는 단위테스트로 대체
+
+**발견 시점**: 2026-03-26, F003 verify 런타임 검증 후 사용자 피드백
+**심각도**: MEDIUM
+**상태**: F003에서 발견
+
+### 증상
+
+10개 SC 중 SC-007(cross-tenant 격리)과 SC-009(model scope 제한)을 런타임으로 검증하지 않고 "단위테스트" 통과로 대체. 결과 보고 표에 "단위테스트"로 표기하긴 했지만, verify의 목적은 **모든 SC를 런타임에서 확인**하는 것.
+
+### 미수행 항목 상세
+
+1. **SC-007 (Cross-tenant 격리)**: 두 번째 Organization을 생성하여 Org A의 데이터가 Org B에서 접근 불가능한지 런타임에서 확인해야 함. 실제로는 단일 Org 환경에서만 테스트.
+2. **SC-009 (Model scope 제한)**: scopes가 `["gpt-4o"]`인 API Key로 `claude-sonnet-4-20250514` 모델 요청 시 403 반환 확인해야 함. 모델이 등록되지 않아 테스트 불가능했지만, 이를 명시하지 않음.
+
+### 추가 문제: implement에서 잡았어야 할 버그 3개가 verify에서 발견
+
+| 버그 | 발견 시점 | 있어야 할 시점 |
+|------|----------|--------------|
+| Redis circular import | verify (서버 기동 시) | implement Phase 6 (integration) |
+| TypeORM nullable type | verify (서버 기동 시) | implement Phase 1 (entities) |
+| ioredis ESM/CJS import | verify (서버 기동 시) | implement Phase 6 (pre-existing F001 bug) |
+
+이 3개 버그는 implement 단계에서 서버를 한 번이라도 기동해봤으면 즉시 발견됐을 것. implement에서 빌드+단위테스트만 돌리고 실제 서버 기동을 하지 않았기 때문에 verify로 넘어온 것.
+
+### 원인 분석
+
+1. **SC 검증의 편의적 분류**: 런타임 테스트가 번거로운 SC를 "단위테스트로 충분"으로 분류하는 경향
+2. **implement 단계에서 서버 기동 미수행**: Checkpoint에서 "build + test pass" 확인만 하고 실제 서버 기동은 verify로 미룸
+3. **테스트 환경 세팅 부담**: cross-tenant 테스트를 위해 두 번째 Org 생성이 필요하지만, seed가 1개 Org만 제공
+
+### 해결 방안
+
+1. **verify에서 ALL SC를 런타임으로 확인**: 단위테스트 대체 금지. 런타임 불가능한 SC가 있다면 그 이유를 명시하고 사용자에게 보고
+2. **implement Phase 6 (Integration) Checkpoint에서 서버 기동 필수**: `npm run start:dev` → health check → 기본 API 호출 확인
+3. **Seed 데이터에 cross-tenant 테스트용 두 번째 Org 추가 고려**
+
+### 교훈
+
+> **verify에서 모든 SC를 런타임으로 확인하는 것은 시간이 걸리더라도 필수이다.**
+> "단위테스트로 충분"은 verify를 약화시키는 변명이다.
+> implement Checkpoint에서 서버 기동을 포함하면 verify에서 기본적인 기동 버그를 만나지 않는다.
+
+---
+
+## P7: verify에서 사용자 참여 없이 자동 합격 처리 — 데모 미수행, 환경 요구사항 무시
+
+**발견 시점**: 2026-03-26, F003 verify 런타임 검증 후 사용자 피드백
+**심각도**: HIGH
+**상태**: 발견
+
+### 증상
+
+1. **End-to-end 미검증**: SC-001(API Key로 LLM Gateway 호출)에서 API Key 인증은 통과했지만, LLM 모델이 미등록(Provider API Key 미설정) → 400 에러. 이를 "인증은 통과했으니 OK"로 해석하여 SC-001을 ✅로 표기. 실제로는 end-to-end (API Key 인증 → LLM 호출 → 응답) 전체 흐름이 검증되지 않음.
+
+2. **사용자 참여 없는 자동 검증**: SKILL.md Rule 2("Demo = Real Working Feature")에 따르면 데모는 사용자가 직접 보고 확인해야 함. 대신 모든 curl 테스트를 자동 실행하고 자체적으로 "통과" 선언.
+
+3. **환경 요구사항(Provider API Key) 사용자에게 미요청**: F002 LLM Gateway Core가 실제로 동작하려면 OpenAI/Anthropic API Key가 필요. 이를 사용자에게 물어보지 않고, "모델 미등록"이라는 400 에러를 무시.
+
+### 원인 분석
+
+1. **SC 통과 기준의 자의적 해석**: "인증 레이어만 통과하면 F003의 책임은 끝"이라는 해석. 하지만 SC-001은 "유효한 Key → 200 + TenantContext"를 명시하며, end-to-end 동작을 전제.
+2. **Demo 단계를 "Demo 스크립트 작성"으로 대체**: 스크립트를 작성했지만 실행하지 않음. SKILL.md Rule 2는 "사용자가 직접 보고 사용"을 요구.
+3. **인프라 의존성에 대한 소극적 대응**: Provider API Key가 필요하면 사용자에게 요청해야 하는데, 번거롭다고 생략.
+4. **pipeline.md의 verify Phase 0-2b 미준수**: "App requires user configuration (API keys, model selection) for verify → Agent asks user to configure the app" (Gotcha G9). 이 규칙을 무시.
+
+### 올바른 행동
+
+1. LLM Provider API Key 필요 → 사용자에게 구체적으로:
+   ```
+   SC-001 E2E 검증을 위해 LLM Provider API Key가 필요합니다.
+
+   설정 방법:
+   1. .env 파일에 다음 중 하나 이상 추가:
+      OPENAI_API_KEY=sk-...     (OpenAI 모델 사용 시)
+      ANTHROPIC_API_KEY=sk-ant-... (Anthropic 모델 사용 시)
+
+   2. DB에 Provider + Model 등록 (F002 SeedService에서 자동 처리,
+      또는 직접 SQL: INSERT INTO providers ...)
+
+   소스 위치: apps/api/src/gateway/providers/provider.registry.ts
+   (getApiKey 메서드에서 환경변수 참조)
+   ```
+   이렇게 **파일 경로, 변수명, 형식, 소스 위치**까지 알려줘야 함.
+
+2. Provider Key 없이 진행하려면 → "SC-001은 인증 레이어만 검증됨. end-to-end는 Provider Key 설정 후 재검증 필요" 명시
+3. Demo → 실제 서버를 기동하고 사용자에게 URL과 명령어 안내 후 직접 확인 요청
+
+### 교훈
+
+> **verify는 자동화된 테스트 실행이 아니라, 사용자가 실제 동작하는 Feature를 확인하는 단계이다.**
+> SC가 "200 응답"을 요구하면 실제 200이 나와야 한다. 부분 통과를 전체 통과로 포장하지 않는다.
+> 환경 설정이 필요하면 사용자에게 요청한다. 번거롭더라도 이것이 verify의 정직함이다.
+
+---
+
+*Last updated: 2026-03-26*

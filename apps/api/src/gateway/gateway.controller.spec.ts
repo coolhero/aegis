@@ -8,6 +8,8 @@ import {
 } from '@aegis/common/gateway';
 import { Response } from 'express';
 import { BadRequestException } from '@nestjs/common';
+import { ApiKeyService } from '../auth/api-key.service';
+import { ApiKeyAuthGuard } from '@aegis/common';
 
 describe('GatewayController', () => {
   let controller: GatewayController;
@@ -38,13 +40,21 @@ describe('GatewayController', () => {
       debug: jest.fn(),
     };
 
+    const mockApiKeyService = {
+      checkModelScope: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [GatewayController],
       providers: [
         { provide: GatewayService, useValue: mockGatewayService },
         { provide: LoggerService, useValue: mockLoggerService },
+        { provide: ApiKeyService, useValue: mockApiKeyService },
       ],
-    }).compile();
+    })
+      .overrideGuard(ApiKeyAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<GatewayController>(GatewayController);
     gatewayService = module.get(GatewayService);
@@ -80,7 +90,7 @@ describe('GatewayController', () => {
       gatewayService.chat.mockResolvedValue(expectedResponse);
 
       const res = mockResponse();
-      await controller.chatCompletions(request, res);
+      await controller.chatCompletions(request, { apiKey: null }, res);
 
       expect(gatewayService.chat).toHaveBeenCalledWith(request);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -111,7 +121,7 @@ describe('GatewayController', () => {
       gatewayService.chatStream.mockReturnValue(mockStream());
 
       const res = mockResponse();
-      await controller.chatCompletions(request, res);
+      await controller.chatCompletions(request, { apiKey: null }, res);
 
       expect(res.setHeader).toHaveBeenCalledWith(
         'Content-Type',
@@ -146,7 +156,7 @@ describe('GatewayController', () => {
       );
 
       const res = mockResponse();
-      await controller.chatCompletions(request, res);
+      await controller.chatCompletions(request, { apiKey: null }, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith(
@@ -192,7 +202,7 @@ describe('GatewayController', () => {
       gatewayService.chat.mockResolvedValue(expectedResponse);
 
       const res = mockResponse();
-      await controller.chatCompletions(request, res);
+      await controller.chatCompletions(request, { apiKey: null }, res);
 
       expect(gatewayService.chat).toHaveBeenCalledWith(request);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -232,7 +242,7 @@ describe('GatewayController', () => {
       gatewayService.chatStream.mockReturnValue(mockErrorStream());
 
       const res = mockResponse();
-      await controller.chatCompletions(request, res);
+      await controller.chatCompletions(request, { apiKey: null }, res);
 
       // SSE headers should still be set
       expect(res.setHeader).toHaveBeenCalledWith(

@@ -3,27 +3,39 @@ import {
   Post,
   Body,
   Res,
+  Req,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ChatCompletionRequest } from '@aegis/common/gateway';
+import { ApiKeyAuthGuard } from '@aegis/common';
 import { GatewayService } from './gateway.service';
 import { LoggerService } from '@aegis/common/logger/logger.service';
+import { ApiKeyService } from '../auth/api-key.service';
 
 @Controller('v1')
 export class GatewayController {
   constructor(
     private readonly gatewayService: GatewayService,
     private readonly logger: LoggerService,
+    private readonly apiKeyService: ApiKeyService,
   ) {}
 
   @Post('chat/completions')
+  @UseGuards(ApiKeyAuthGuard)
   async chatCompletions(
     @Body() request: ChatCompletionRequest,
+    @Req() req: any,
     @Res() res: Response,
   ): Promise<void> {
     try {
+      // Check model scope if API key has scopes defined
+      if (req.apiKey) {
+        this.apiKeyService.checkModelScope(req.apiKey, request.model);
+      }
+
       if (request.stream) {
         await this.handleStreaming(request, res);
       } else {
