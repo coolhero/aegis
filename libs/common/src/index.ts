@@ -6,3 +6,19 @@ export { RedisService } from './redis/redis.service';
 export { HttpExceptionFilter } from './filters/http-exception.filter';
 export { ResponseInterceptor } from './interceptors/response.interceptor';
 export { LoggerService } from './logger/logger.service';
+
+// F002: LLM Gateway Core
+export {
+  ProviderAdapter,
+  ChatCompletionRequest,
+  ChatCompletionResponse,
+  ChatCompletionChoice,
+  ChatCompletionChunk,
+  ChatCompletionChunkDelta,
+  ChatCompletionChunkChoice,
+  Message,
+  Usage,
+  Provider,
+  ProviderType,
+  Model,
+} from './gateway';

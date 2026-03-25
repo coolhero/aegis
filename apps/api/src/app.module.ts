@@ -4,9 +4,16 @@ import { DatabaseModule } from '@aegis/common/database/database.module';
 import { RedisModule } from '@aegis/common/redis/redis.module';
 import { LoggerService } from '@aegis/common/logger/logger.service';
 import { HealthModule } from './health/health.module';
+import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
-  imports: [AegisConfigModule, DatabaseModule, RedisModule, HealthModule],
+  imports: [
+    AegisConfigModule,
+    DatabaseModule,
+    RedisModule,
+    HealthModule,
+    GatewayModule,
+  ],
   providers: [LoggerService],
   exports: [LoggerService],
 })
