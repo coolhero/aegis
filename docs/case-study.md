@@ -236,7 +236,7 @@ Phase 5: → Case Study finalization (EN + KO)
 Phase 0: ✅ Market Research & Ideation
 Phase 1: ✅ git init, CLAUDE.md, /domain-extend (3 custom modules)
 Phase 2: ✅ /smart-sdd init (Proposal Mode, CI 97%)
-Phase 3: → /smart-sdd add (Feature definitions)
+Phase 3: ✅ /smart-sdd add (12 Features, T0~T3)
 Phase 4: → /smart-sdd pipeline (T0+T1 Features)
 Phase 5: → Case Study finalization (EN + KO)
 ```
@@ -336,9 +336,60 @@ Phase 5: → Case Study finalization (EN + KO)
 
 ---
 
-## Phase 3: Feature Definition
+## Phase 3: Feature Definition (smart-sdd add)
 
-> Status: PENDING — will be documented as /smart-sdd add is executed
+> Status: ✅ COMPLETED (2026-03-25)
+
+### 3.1 Entry Type
+
+**Type**: Conversational (Type 2) — Proposal에서 제안된 12개 Feature를 기반으로 대화형 elaboration
+
+### 3.2 Elaboration Process
+
+**S5 Probes 활용**: Domain Profile에서 활성화된 모듈의 S5 Elaboration Probes로 핵심 결정사항 수집
+
+| Feature | S5 Probe | Decision |
+|---------|----------|----------|
+| F001 Foundation Setup | 인프라 범위 | Standard NestJS: monorepo + PG + Redis + Docker Compose |
+| F002 LLM Gateway Core | 프로바이더 전략 | OpenAI + Anthropic (2개로 시작, 확장 가능 구조) |
+| F003 Auth & Multi-tenancy | 인증 방식 | API Key + JWT (OAuth는 향후 확장) |
+| F006 Security Guardrails | 방어 수준 | LLM Guard (MIT 오픈소스) 기반 |
+| F007 Admin Dashboard | UI 프레임워크 | Next.js + shadcn/ui + TanStack Query |
+| F009 Knowledge Integration | 지식 통합 방식 | MCP + Vector RAG 하이브리드 |
+
+### 3.3 Feature Catalog (12 Features, 4 Tiers)
+
+| Tier | Count | Features |
+|------|-------|----------|
+| T0 | 1 | F001 Foundation Setup |
+| T1 | 4 | F002 Gateway Core, F003 Auth, F004 Budget, F005 Logging |
+| T2 | 3 | F006 Security, F007 Dashboard, F008 Fallback |
+| T3 | 4 | F009 Knowledge, F010 Prompts, F011 Cache, F012 Playground |
+
+### 3.4 Release Groups
+
+| RG | Features | Milestone |
+|----|----------|-----------|
+| RG1 | F001~F005 | Core Platform (MVP) |
+| RG2 | F006~F008 | Enterprise Ready |
+| RG3 | F009~F011 | Intelligence |
+| RG4 | F012 | Developer Experience |
+
+### 3.5 Generated Artifacts
+
+- 12개 `pre-context.md` 파일 (specs/001-* ~ specs/012-*)
+- `roadmap.md` 업데이트: Feature Catalog + Dependency Graph + Release Groups + Demo Groups
+- `sdd-state.md` 업데이트: 12 Features (status: pending)
+- `entity-registry.md` 업데이트: 20개 엔티티 (owner + fields + references)
+- `api-registry.md` 업데이트: 모든 REST 엔드포인트 + Internal Services
+
+### 3.6 Observations
+
+- **6-Phase Briefing 간소화**: Greenfield 프로젝트이므로 Phase 2 (Overlap) 스킵, Phase 4 (SBI) 스킵
+- **Batch Elaboration**: 12개 Feature를 개별이 아닌 배치로 처리하여 효율성 확보
+- **Entity Registry 선행 작성**: plan 단계 전에 미리 20개 엔티티 정의 → specify/plan에서 참조 가능
+- **API Registry 선행 작성**: Feature 간 API 계약 사전 정의 → cross-Feature 의존성 명확화
+- **컨텍스트 관리**: G11 (3+ Features = context saturation) 주의사항을 인지하고 있으며, pipeline 실행 시 Feature별로 세션 분리 필요
 
 ---
 
