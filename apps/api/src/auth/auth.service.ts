@@ -94,13 +94,16 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_SECRET'),
         expiresIn: this.configService.get<string>('JWT_EXPIRATION', '15m') as any,
       }),
-      this.jwtService.signAsync(payload as any, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get<string>(
-          'JWT_REFRESH_EXPIRATION',
-          '7d',
-        ) as any,
-      }),
+      this.jwtService.signAsync(
+        { ...payload, jti: crypto.randomUUID() } as any,
+        {
+          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+          expiresIn: this.configService.get<string>(
+            'JWT_REFRESH_EXPIRATION',
+            '7d',
+          ) as any,
+        },
+      ),
     ]);
 
     return { accessToken, refreshToken };
