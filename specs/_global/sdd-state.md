@@ -45,7 +45,7 @@
 | F005 | Request Logging & Tracing | completed   | T1   | verified    | main                    | SC 8/16 런타임, 5/16 unit-only (limited). 107tests. verify-report.md                     |
 | F006 | Security Guardrails       | completed   | T2   | verified    | main                    | SC 8/8 런타임(demo CI), 61 unit tests, 168 total. verify-report.md PASS |                                                                           |
 | F007 | Admin Dashboard           | completed   | T2   | verified    | main                    | SC 16/16. Next.js+shadcn/ui+SSE. Playwright 런타임. P8-P11 skill feedback.                |
-| F008 | Provider Fallback & LB    | pending     | T2   | pre-context | —                       |                                                                                       |
+| F008 | Provider Fallback & LB    | in_progress | T2   | verify ✅    | 008-provider-fallback-lb | SC 7/8 PASS, 1 PARTIAL (SC-004 예산). P12 micro-verify. merge 대기.                     |
 | F009 | Knowledge Integration     | pending     | T3   | pre-context | —                       |                                                                                       |
 | F010 | Prompt Management         | pending     | T3   | pre-context | —                       |                                                                                       |
 | F011 | Semantic Cache            | pending     | T3   | pre-context | —                       |                                                                                       |
