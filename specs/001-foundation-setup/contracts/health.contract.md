@@ -2,19 +2,19 @@
 
 **Feature**: F001 — Foundation Setup
 **Base Path**: `/`
-**Authentication**: None required
+**Authentication**: 인증 불필요
 
 ---
 
 ## GET /health
 
-**Description**: Application health check endpoint. Returns the status of the application and its dependent infrastructure components (database, Redis). Used by load balancers, monitoring systems, and CI/CD pipelines.
+**Description**: 애플리케이션 헬스 체크 엔드포인트. 애플리케이션과 의존하는 인프라 구성요소(데이터베이스, Redis)의 상태를 반환한다. 로드 밸런서, 모니터링 시스템, CI/CD 파이프라인에서 사용된다.
 
-**Authentication**: None required
+**Authentication**: 인증 불필요
 
 ### Request
 
-No request body or query parameters.
+요청 본문이나 쿼리 파라미터가 없다.
 
 ```
 GET /health HTTP/1.1
@@ -23,7 +23,7 @@ Host: localhost:3000
 
 ### Response 200 — Healthy
 
-All components are operational.
+모든 구성요소가 정상 작동 중이다.
 
 ```json
 {
@@ -38,7 +38,7 @@ All components are operational.
 
 ### Response 200 — Degraded
 
-Non-critical component (Redis) is down, but the application remains functional.
+비핵심 구성요소(Redis)가 다운되었지만, 애플리케이션은 기능을 유지한다.
 
 ```json
 {
@@ -53,7 +53,7 @@ Non-critical component (Redis) is down, but the application remains functional.
 
 ### Response 503 — Unhealthy
 
-Critical component (database) is down. The application cannot serve requests reliably.
+핵심 구성요소(데이터베이스)가 다운되었다. 애플리케이션이 안정적으로 요청을 처리할 수 없다.
 
 ```json
 {
@@ -70,10 +70,10 @@ Critical component (database) is down. The application cannot serve requests rel
 
 | Field | Type | Values | Description |
 |-------|------|--------|-------------|
-| `status` | string | `"ok"` \| `"degraded"` \| `"error"` | Overall application health status |
-| `components.db` | string | `"up"` \| `"down"` | PostgreSQL connection status |
-| `components.redis` | string | `"up"` \| `"down"` | Redis connection status |
-| `timestamp` | string | ISO 8601 | Server timestamp at response time |
+| `status` | string | `"ok"` \| `"degraded"` \| `"error"` | 전체 애플리케이션 헬스 상태 |
+| `components.db` | string | `"up"` \| `"down"` | PostgreSQL 연결 상태 |
+| `components.redis` | string | `"up"` \| `"down"` | Redis 연결 상태 |
+| `timestamp` | string | ISO 8601 | 응답 시점의 서버 타임스탬프 |
 
 ### Status Code Logic
 
@@ -86,7 +86,7 @@ Critical component (database) is down. The application cannot serve requests rel
 
 ### Notes
 
-- The endpoint does NOT require authentication to allow external health monitoring.
-- Redis is treated as non-critical: its failure degrades the application but does not make it unhealthy.
-- Database is treated as critical: its failure results in 503 and `"error"` status.
-- The `timestamp` field uses the server's UTC time at the moment of the response.
+- 이 엔드포인트는 외부 헬스 모니터링을 허용하기 위해 인증을 요구하지 않는다(NOT).
+- Redis는 비핵심으로 취급된다: 장애 시 애플리케이션을 저하시키지만 비정상 상태로 만들지는 않는다.
+- 데이터베이스는 핵심으로 취급된다: 장애 시 503과 `"error"` 상태를 반환한다.
+- `timestamp` 필드는 응답 시점의 서버 UTC 시간을 사용한다.

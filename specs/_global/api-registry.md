@@ -1,12 +1,12 @@
 # API Registry — AEGIS
 
-> Inter-Feature API contracts. Populated during `speckit-plan`.
+> Feature 간 API 계약. `speckit-plan` 실행 시 채워짐.
 
 ## F001 — Foundation Setup
 
 | Method | Path | Provider | Consumer(s) | Description |
 |--------|------|----------|-------------|-------------|
-| GET | `/health` | F001 | All | 헬스체크 (DB + Redis connectivity) |
+| GET | `/health` | F001 | All | 헬스체크 (DB + Redis 연결 상태) |
 
 ## F002 — LLM Gateway Core
 
@@ -36,6 +36,10 @@
 | PUT | `/budgets/:level/:id` | F004 | F007 | 예산 설정/수정 |
 | GET | `/usage/:level/:id` | F004 | F007 | 사용량 조회 |
 | GET | `/usage/summary` | F004 | F007 | 사용량 요약 (기간별) |
+| POST | `/model-tiers` | F004 | F007 | 모델 티어 생성 (Admin) |
+| GET | `/model-tiers` | F004 | F007 | 모델 티어 목록 조회 |
+| PUT | `/model-tiers/:id` | F004 | F007 | 모델 티어 수정 |
+| DELETE | `/model-tiers/:id` | F004 | F007 | 모델 티어 삭제 |
 
 ## F005 — Request Logging & Tracing
 
@@ -102,7 +106,7 @@
 |--------|------|----------|-------------|-------------|
 | — | `/playground/*` | F012 (UI) | Browser | 개발자 Playground 웹 UI |
 
-## Internal Services (NestJS Guards/Interceptors)
+## 내부 서비스 (NestJS Guards/Interceptors)
 
 | Service | Provider | Consumer(s) | Description |
 |---------|----------|-------------|-------------|

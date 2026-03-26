@@ -1,7 +1,7 @@
 # Implementation Plan: F003 — Auth & Multi-tenancy
 
 **Branch**: `003-auth-multi-tenancy` | **Date**: 2025-03-25 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/003-auth-multi-tenancy/spec.md`
+**Input**: `/specs/003-auth-multi-tenancy/spec.md`의 Feature 명세
 
 ## Summary
 
@@ -14,8 +14,8 @@ API Key 인증과 JWT 세션 관리를 구현하고, Organization > Team > User 
 **Storage**: PostgreSQL (TypeORM), Redis (세션/캐시 향후)
 **Testing**: Jest + Supertest
 **Target Platform**: Linux server (Docker)
-**Project Type**: Web service (API gateway)
-**Constraints**: MVP scope — Row-Level tenant isolation, 단일 Refresh Token per user
+**Project Type**: 웹 서비스 (API gateway)
+**Constraints**: MVP 범위 — Row-Level tenant isolation, 사용자당 단일 Refresh Token
 
 ## Constitution Check
 
@@ -29,19 +29,19 @@ API Key 인증과 JWT 세션 관리를 구현하고, Organization > Team > User 
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (이 Feature)
 
 ```text
 specs/003-auth-multi-tenancy/
-├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output
+├── plan.md              # 이 파일
+├── research.md          # Phase 0 산출물
+├── data-model.md        # Phase 1 산출물
+├── quickstart.md        # Phase 1 산출물
+├── contracts/           # Phase 1 산출물
 │   ├── auth.contract.md
 │   ├── organizations.contract.md
 │   └── api-keys.contract.md
-└── tasks.md             # Phase 2 output
+└── tasks.md             # Phase 2 산출물
 ```
 
 ### Source Code
@@ -49,26 +49,26 @@ specs/003-auth-multi-tenancy/
 ```text
 libs/common/src/auth/
 ├── index.ts                      # Barrel export
-├── auth.types.ts                 # Role enum, JwtPayload, TenantContext interfaces
-├── organization.entity.ts        # Organization TypeORM entity
-├── team.entity.ts                # Team TypeORM entity
-├── user.entity.ts                # User TypeORM entity (with @BeforeInsert hash)
-├── api-key.entity.ts             # ApiKey TypeORM entity
+├── auth.types.ts                 # Role enum, JwtPayload, TenantContext 인터페이스
+├── organization.entity.ts        # Organization TypeORM 엔티티
+├── team.entity.ts                # Team TypeORM 엔티티
+├── user.entity.ts                # User TypeORM 엔티티 (@BeforeInsert 해시 포함)
+├── api-key.entity.ts             # ApiKey TypeORM 엔티티
 ├── jwt-auth.guard.ts             # JWT Bearer Guard
 ├── api-key-auth.guard.ts         # x-api-key Guard
 ├── roles.guard.ts                # RBAC Roles Guard
-├── roles.decorator.ts            # @Roles() decorator
-└── tenant-context.middleware.ts  # TenantContext extraction middleware
+├── roles.decorator.ts            # @Roles() 데코레이터
+└── tenant-context.middleware.ts  # TenantContext 추출 미들웨어
 
 apps/api/src/auth/
 ├── auth.module.ts                # NestJS AuthModule
-├── auth.service.ts               # Login, refresh, token logic
+├── auth.service.ts               # 로그인, refresh, 토큰 로직
 ├── auth.controller.ts            # POST /auth/login, /auth/refresh
-├── auth.controller.spec.ts       # Controller unit tests
+├── auth.controller.spec.ts       # Controller 유닛 테스트
 ├── api-key.service.ts            # API Key CRUD
-├── api-key.controller.ts         # API Key endpoints
+├── api-key.controller.ts         # API Key 엔드포인트
 ├── organization.controller.ts    # Organization/Team/User CRUD
-└── seed.service.ts               # Demo seed data
+└── seed.service.ts               # 데모 seed 데이터
 ```
 
 ## Architecture
@@ -76,33 +76,33 @@ apps/api/src/auth/
 ### Authentication Flow
 
 ```
-Client Request
+클라이언트 요청
   │
-  ├─ x-api-key header? ──→ ApiKeyGuard ──→ SHA-256 hash → DB lookup
+  ├─ x-api-key 헤더? ──→ ApiKeyGuard ──→ SHA-256 해시 → DB 조회
   │                                         → TenantContext(orgId)
   │
-  └─ Authorization: Bearer? ──→ JwtAuthGuard ──→ passport-jwt verify
-                                                  → TenantContext(orgId from JWT claim)
+  └─ Authorization: Bearer? ──→ JwtAuthGuard ──→ passport-jwt 검증
+                                                  → TenantContext(JWT claim의 orgId)
   │
-  └─ Neither? ──→ 401 Unauthorized
-  │
-  ▼
-  RolesGuard ──→ Check @Roles() decorator → 403 if insufficient
+  └─ 둘 다 없음? ──→ 401 Unauthorized
   │
   ▼
-  Controller (with TenantContext available via @Req())
+  RolesGuard ──→ @Roles() 데코레이터 확인 → 권한 부족 시 403
+  │
+  ▼
+  Controller (TenantContext를 @Req()를 통해 사용 가능)
 ```
 
 ### Tenant Context Propagation
 
 ```
-Middleware/Guard → sets req.tenantContext = { orgId, userId, role }
+Middleware/Guard → req.tenantContext = { orgId, userId, role } 설정
   │
   ├─ Controller: @Req() req → req.tenantContext
   │
-  ├─ Service: injected via method parameter or @Inject()
+  ├─ Service: 메서드 파라미터 또는 @Inject()를 통해 주입
   │
-  └─ Repository: all queries append WHERE org_id = :orgId
+  └─ Repository: 모든 쿼리에 WHERE org_id = :orgId 추가
 ```
 
 ### Module Dependencies
@@ -117,32 +117,32 @@ AuthModule
 
 ## Complexity Tracking
 
-No constitution violations. MVP-appropriate complexity level maintained.
+헌법(constitution) 위반 사항 없음. MVP에 적합한 복잡도 수준 유지.
 
 ## Implementation Phases
 
-### Phase 1: Entities & Types (libs/common)
-- Auth type definitions (Role enum, JWT payload, TenantContext interface)
-- Organization, Team, User, ApiKey TypeORM entities
+### Phase 1: 엔티티 & 타입 (libs/common)
+- Auth 타입 정의 (Role enum, JWT payload, TenantContext 인터페이스)
+- Organization, Team, User, ApiKey TypeORM 엔티티
 - Barrel exports
 
 ### Phase 2: Guards & Middleware (libs/common)
 - JwtAuthGuard (passport-jwt strategy)
-- ApiKeyAuthGuard (custom SHA-256 lookup)
-- RolesGuard + @Roles() decorator
-- TenantContext middleware
+- ApiKeyAuthGuard (커스텀 SHA-256 조회)
+- RolesGuard + @Roles() 데코레이터
+- TenantContext 미들웨어
 
 ### Phase 3: Auth Service & Controller (apps/api)
-- AuthModule setup (JwtModule, PassportModule)
-- AuthService (login, refresh, validate)
+- AuthModule 설정 (JwtModule, PassportModule)
+- AuthService (로그인, refresh, 검증)
 - AuthController (POST /auth/login, POST /auth/refresh)
 
-### Phase 4: Organization & API Key Management (apps/api)
+### Phase 4: Organization & API Key 관리 (apps/api)
 - OrganizationController (org/team/user CRUD)
-- ApiKeyService & ApiKeyController (create/list/revoke)
+- ApiKeyService & ApiKeyController (생성/목록/폐기)
 
-### Phase 5: Integration & Seed
+### Phase 5: 통합 & Seed
 - GatewayModule에 AuthGuard 통합
-- SeedService (demo data)
+- SeedService (데모 데이터)
 - app.module.ts에 AuthModule 등록
 - .env.example 업데이트

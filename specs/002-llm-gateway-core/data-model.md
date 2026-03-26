@@ -2,26 +2,26 @@
 
 **Feature**: F002 — LLM Gateway Core
 **Date**: 2025-03-25
-**Phase**: 1 (Design)
+**Phase**: 1 (설계)
 
 ## Entities
 
 ### Provider
 
-LLM provider configuration entity. Stores connection details, health status, and routing weight for each supported provider (OpenAI, Anthropic).
+LLM 프로바이더 구성 엔티티. 지원되는 각 프로바이더(OpenAI, Anthropic)에 대한 연결 세부사항, 헬스 상태, 라우팅 가중치를 저장한다.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PK, auto-generated | Unique identifier |
-| `name` | varchar | NOT NULL, UNIQUE | Human-readable provider name (e.g., `"openai"`, `"anthropic"`) |
-| `type` | enum | NOT NULL | Provider type enum: `'openai'` \| `'anthropic'` |
-| `api_key_encrypted` | varchar | NULLABLE | Encrypted API key (nullable for providers using env-based keys) |
-| `base_url` | varchar | NULLABLE | Custom base URL override (e.g., Azure OpenAI endpoint) |
-| `enabled` | boolean | NOT NULL, default: `true` | Whether this provider is active for routing |
-| `health_status` | varchar | NOT NULL, default: `'unknown'` | Last known health: `'healthy'` \| `'degraded'` \| `'unhealthy'` \| `'unknown'` |
-| `weight` | integer | NOT NULL, default: `1` | Routing weight for load balancing (F008, future) |
-| `created_at` | timestamp | NOT NULL, auto-set | Record creation timestamp |
-| `updated_at` | timestamp | NOT NULL, auto-set | Last update timestamp |
+| `id` | UUID | PK, auto-generated | 고유 식별자 |
+| `name` | varchar | NOT NULL, UNIQUE | 사람이 읽을 수 있는 프로바이더 이름 (예: `"openai"`, `"anthropic"`) |
+| `type` | enum | NOT NULL | 프로바이더 타입 enum: `'openai'` \| `'anthropic'` |
+| `api_key_encrypted` | varchar | NULLABLE | 암호화된 API 키 (env 기반 키를 사용하는 프로바이더의 경우 nullable) |
+| `base_url` | varchar | NULLABLE | 커스텀 base URL 오버라이드 (예: Azure OpenAI 엔드포인트) |
+| `enabled` | boolean | NOT NULL, default: `true` | 이 프로바이더가 라우팅에 활성화되어 있는지 여부 |
+| `health_status` | varchar | NOT NULL, default: `'unknown'` | 마지막으로 알려진 헬스 상태: `'healthy'` \| `'degraded'` \| `'unhealthy'` \| `'unknown'` |
+| `weight` | integer | NOT NULL, default: `1` | 로드 밸런싱을 위한 라우팅 가중치 (F008, 향후) |
+| `created_at` | timestamp | NOT NULL, auto-set | 레코드 생성 타임스탬프 |
+| `updated_at` | timestamp | NOT NULL, auto-set | 마지막 업데이트 타임스탬프 |
 
 **TypeORM Entity**:
 
@@ -81,21 +81,21 @@ export class Provider {
 
 ### Model
 
-LLM model configuration entity. Maps client-facing model names to provider-specific models with pricing and capability metadata.
+LLM 모델 구성 엔티티. 클라이언트가 사용하는 모델명을 프로바이더별 모델에 매핑하고, 가격 및 기능 메타데이터를 포함한다.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PK, auto-generated | Unique identifier |
-| `provider_id` | UUID | FK -> `providers.id`, NOT NULL | Owning provider |
-| `name` | varchar | NOT NULL, UNIQUE | Client-facing model name (e.g., `"gpt-4o"`, `"claude-sonnet-4-20250514"`) |
-| `display_name` | varchar | NOT NULL | Human-readable display name |
-| `input_price_per_token` | decimal(20,12) | NOT NULL, default: `0` | Cost per input token (USD) |
-| `output_price_per_token` | decimal(20,12) | NOT NULL, default: `0` | Cost per output token (USD) |
-| `max_tokens` | integer | NOT NULL, default: `4096` | Maximum output tokens supported |
-| `context_window` | integer | NOT NULL, default: `128000` | Maximum context window size (input + output) |
-| `enabled` | boolean | NOT NULL, default: `true` | Whether this model is available for requests |
-| `created_at` | timestamp | NOT NULL, auto-set | Record creation timestamp |
-| `updated_at` | timestamp | NOT NULL, auto-set | Last update timestamp |
+| `id` | UUID | PK, auto-generated | 고유 식별자 |
+| `provider_id` | UUID | FK -> `providers.id`, NOT NULL | 소유 프로바이더 |
+| `name` | varchar | NOT NULL, UNIQUE | 클라이언트가 사용하는 모델명 (예: `"gpt-4o"`, `"claude-sonnet-4-20250514"`) |
+| `display_name` | varchar | NOT NULL | 사람이 읽을 수 있는 표시 이름 |
+| `input_price_per_token` | decimal(20,12) | NOT NULL, default: `0` | 입력 토큰당 비용 (USD) |
+| `output_price_per_token` | decimal(20,12) | NOT NULL, default: `0` | 출력 토큰당 비용 (USD) |
+| `max_tokens` | integer | NOT NULL, default: `4096` | 지원되는 최대 출력 토큰 수 |
+| `context_window` | integer | NOT NULL, default: `128000` | 최대 컨텍스트 윈도우 크기 (입력 + 출력) |
+| `enabled` | boolean | NOT NULL, default: `true` | 이 모델이 요청에 사용 가능한지 여부 |
+| `created_at` | timestamp | NOT NULL, auto-set | 레코드 생성 타임스탬프 |
+| `updated_at` | timestamp | NOT NULL, auto-set | 마지막 업데이트 타임스탬프 |
 
 **TypeORM Entity**:
 
@@ -166,23 +166,23 @@ export class Model {
 
 ---
 
-### GatewayRequest (Runtime Context — Not Persisted)
+### GatewayRequest (런타임 컨텍스트 — 비영속)
 
-In-memory request context used during request processing. Not a database entity. Tracks the lifecycle of a single gateway request for token counting, error handling, and future logging (F005).
+요청 처리 중 사용되는 인메모리 요청 컨텍스트. 데이터베이스 엔티티가 아니다. 토큰 카운팅, 에러 처리, 향후 로깅(F005)을 위한 단일 게이트웨이 요청의 라이프사이클을 추적한다.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `requestId` | string (UUID) | Unique request identifier |
-| `model` | string | Requested model name |
-| `provider` | ProviderType | Resolved provider type |
-| `stream` | boolean | Whether streaming was requested |
-| `promptTokens` | number | Input token count (from provider usage) |
-| `completionTokens` | number | Output token count (from provider usage) |
-| `totalTokens` | number | Total tokens (prompt + completion) |
-| `startedAt` | Date | Request start timestamp |
-| `completedAt` | Date \| null | Request completion timestamp |
-| `error` | string \| null | Error message if request failed |
-| `tokensStreamed` | number | Tokens successfully streamed before error (for mid-stream failures) |
+| `requestId` | string (UUID) | 고유 요청 식별자 |
+| `model` | string | 요청된 모델명 |
+| `provider` | ProviderType | 해석된 프로바이더 타입 |
+| `stream` | boolean | 스트리밍이 요청되었는지 여부 |
+| `promptTokens` | number | 입력 토큰 수 (프로바이더 usage 기준) |
+| `completionTokens` | number | 출력 토큰 수 (프로바이더 usage 기준) |
+| `totalTokens` | number | 총 토큰 수 (prompt + completion) |
+| `startedAt` | Date | 요청 시작 타임스탬프 |
+| `completedAt` | Date \| null | 요청 완료 타임스탬프 |
+| `error` | string \| null | 요청 실패 시 에러 메시지 |
+| `tokensStreamed` | number | 에러 전까지 성공적으로 스트리밍된 토큰 수 (스트림 중간 실패 시) |
 
 **TypeScript Interface**:
 
@@ -210,29 +210,29 @@ export interface GatewayRequestContext {
 
 | Entity | Index Name | Columns | Type | Purpose |
 |--------|-----------|---------|------|---------|
-| Provider | `UQ_providers_name` | `(name)` | UNIQUE | Prevent duplicate provider names |
-| Provider | `IDX_providers_type` | `(type)` | INDEX | Fast lookup by provider type |
-| Provider | `IDX_providers_enabled` | `(enabled)` | INDEX | Filter active providers |
-| Model | `UQ_models_name` | `(name)` | UNIQUE | Prevent duplicate model names |
-| Model | `IDX_models_provider_id` | `(provider_id)` | INDEX | FK index for provider relation |
-| Model | `IDX_models_enabled` | `(enabled)` | INDEX | Filter active models |
+| Provider | `UQ_providers_name` | `(name)` | UNIQUE | 중복 프로바이더 이름 방지 |
+| Provider | `IDX_providers_type` | `(type)` | INDEX | 프로바이더 타입별 빠른 조회 |
+| Provider | `IDX_providers_enabled` | `(enabled)` | INDEX | 활성 프로바이더 필터링 |
+| Model | `UQ_models_name` | `(name)` | UNIQUE | 중복 모델 이름 방지 |
+| Model | `IDX_models_provider_id` | `(provider_id)` | INDEX | 프로바이더 관계의 FK 인덱스 |
+| Model | `IDX_models_enabled` | `(enabled)` | INDEX | 활성 모델 필터링 |
 
 ## Relationships
 
 ```
 Provider (1) ----< (N) Model
-  - One provider has many models
-  - Each model belongs to exactly one provider
+  - 하나의 프로바이더는 여러 모델을 가진다
+  - 각 모델은 정확히 하나의 프로바이더에 속한다
   - FK: models.provider_id -> providers.id
-  - Cascade: none (deleting provider requires removing models first)
+  - Cascade: 없음 (프로바이더 삭제 시 먼저 모델을 제거해야 함)
 ```
 
 ## Seed Data
 
-Initial seed data for development and testing:
+개발 및 테스트를 위한 초기 시드 데이터:
 
 ```typescript
-// Provider seeds
+// Provider 시드
 const providers = [
   {
     name: 'openai',
@@ -248,7 +248,7 @@ const providers = [
   },
 ];
 
-// Model seeds
+// Model 시드
 const models = [
   {
     name: 'gpt-4o',
@@ -291,15 +291,15 @@ const models = [
 
 ## Migration Strategy
 
-- **Initial migration**: Creates `providers` and `models` tables with all columns, indexes, and FK constraint.
-- **Seed migration**: Inserts default provider and model records.
-- **Migration command**: `npm run migration:generate -- -n CreateProvidersAndModels`
-- **Run command**: `npm run migration:run`
-- **Auto-sync**: Enabled only in `development` environment. Disabled in `staging` and `production`.
+- **초기 마이그레이션**: 모든 컬럼, 인덱스, FK 제약조건을 포함한 `providers` 및 `models` 테이블을 생성한다.
+- **시드 마이그레이션**: 기본 프로바이더 및 모델 레코드를 삽입한다.
+- **마이그레이션 명령**: `npm run migration:generate -- -n CreateProvidersAndModels`
+- **실행 명령**: `npm run migration:run`
+- **Auto-sync**: `development` 환경에서만 활성화. `staging` 및 `production`에서는 비활성화.
 
 ## Notes
 
-- The `api_key_encrypted` column stores encrypted API keys. In development, env vars (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) are used directly via ConfigService. The column is reserved for multi-tenant key management (F003).
-- The `weight` column on Provider is reserved for future load balancing (F008). Default value of 1 means equal weight.
-- `GatewayRequestContext` is intentionally not persisted. Request logging (F005) will introduce a persistent `GatewayLog` entity that captures a subset of this context.
-- `context_window` on Model is informational. Actual context limit enforcement is deferred to F004 (Token Budget).
+- `api_key_encrypted` 컬럼은 암호화된 API 키를 저장한다. 개발 환경에서는 env 변수(`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)가 ConfigService를 통해 직접 사용된다. 이 컬럼은 멀티테넌트 키 관리(F003)를 위해 예약되어 있다.
+- Provider의 `weight` 컬럼은 향후 로드 밸런싱(F008)을 위해 예약되어 있다. 기본값 1은 동일 가중치를 의미한다.
+- `GatewayRequestContext`는 의도적으로 영속화되지 않는다. 요청 로깅(F005)에서 이 컨텍스트의 일부를 캡처하는 영속 `GatewayLog` 엔티티가 도입될 것이다.
+- Model의 `context_window`은 정보 제공용이다. 실제 컨텍스트 제한 집행은 F004 (Token Budget)로 연기된다.

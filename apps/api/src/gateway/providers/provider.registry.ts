@@ -145,42 +145,66 @@ export class ProviderRegistry implements OnModuleInit {
     });
     await this.providerRepo.save(anthropicProvider);
 
-    // Seed models
+    // Seed models (2026-03 최신 기준)
     const models = [
+      // OpenAI — Premium
       {
         providerId: openaiProvider.id,
-        name: 'gpt-4o',
-        displayName: 'GPT-4o',
-        inputPricePerToken: 0.0000025,
-        outputPricePerToken: 0.00001,
-        maxTokens: 16384,
+        name: 'o3',
+        displayName: 'OpenAI o3',
+        inputPricePerToken: 0.00001,
+        outputPricePerToken: 0.00004,
+        maxTokens: 100000,
         enabled: true,
       },
+      // OpenAI — Standard
       {
         providerId: openaiProvider.id,
-        name: 'gpt-4o-mini',
-        displayName: 'GPT-4o Mini',
-        inputPricePerToken: 0.00000015,
-        outputPricePerToken: 0.0000006,
-        maxTokens: 16384,
+        name: 'gpt-4.1',
+        displayName: 'GPT-4.1',
+        inputPricePerToken: 0.000002,
+        outputPricePerToken: 0.000008,
+        maxTokens: 32768,
         enabled: true,
       },
+      // OpenAI — Economy
+      {
+        providerId: openaiProvider.id,
+        name: 'gpt-4.1-mini',
+        displayName: 'GPT-4.1 Mini',
+        inputPricePerToken: 0.0000004,
+        outputPricePerToken: 0.0000016,
+        maxTokens: 32768,
+        enabled: true,
+      },
+      // Anthropic — Premium
+      {
+        providerId: anthropicProvider.id,
+        name: 'claude-opus-4-20250514',
+        displayName: 'Claude Opus 4',
+        inputPricePerToken: 0.000015,
+        outputPricePerToken: 0.000075,
+        maxTokens: 32000,
+        enabled: true,
+      },
+      // Anthropic — Standard
       {
         providerId: anthropicProvider.id,
         name: 'claude-sonnet-4-20250514',
         displayName: 'Claude Sonnet 4',
         inputPricePerToken: 0.000003,
         outputPricePerToken: 0.000015,
-        maxTokens: 8192,
+        maxTokens: 16384,
         enabled: true,
       },
+      // Anthropic — Economy
       {
         providerId: anthropicProvider.id,
-        name: 'claude-3-5-haiku-20241022',
-        displayName: 'Claude 3.5 Haiku',
+        name: 'claude-haiku-4-20250514',
+        displayName: 'Claude Haiku 4',
         inputPricePerToken: 0.0000008,
         outputPricePerToken: 0.000004,
-        maxTokens: 8192,
+        maxTokens: 16384,
         enabled: true,
       },
     ];

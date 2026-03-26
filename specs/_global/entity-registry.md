@@ -1,6 +1,6 @@
 # Entity Registry — AEGIS
 
-> Shared data models across Features. Populated during `speckit-plan`.
+> Feature 간 공유 데이터 모델. `speckit-plan` 실행 시 채워짐.
 
 | Entity | Owner Feature | Key Fields | Referenced By |
 |--------|--------------|------------|---------------|
@@ -12,8 +12,12 @@
 | Team | F003 | `id`, `org_id` (FK), `name`, `slug`, `created_at`, `updated_at` | F004, F005, F007, F010 |
 | User | F003 | `id`, `org_id` (FK), `team_id` (FK, nullable), `email` (unique), `name`, `password_hash`, `role` (admin/member/viewer), `refresh_token_hash`, `created_at`, `updated_at` | F004, F005, F007, F012 |
 | ApiKey | F003 | `id`, `org_id` (FK), `user_id` (FK), `key_hash` (unique), `key_prefix`, `name`, `scopes` (jsonb), `last_used_at`, `expires_at`, `revoked`, `created_at` | F007 |
-| Budget | F004 | `id`, `level` (org/team/user), `target_id`, `token_limit`, `cost_limit_usd`, `soft_limit_pct`, `hard_limit_pct`, `period` (monthly), `current_period_id` | F007 |
-| UsageRecord | F004 | `id`, `budget_id`, `period_id`, `request_id`, `input_tokens`, `output_tokens`, `cost_usd`, `created_at` | F007 |
+| Budget | F004 | `id`, `level` (org/team/user), `target_id`, `org_id`, `token_limit`, `cost_limit_usd`, `alert_thresholds` (jsonb), `period_type`, `webhook_url`, `enabled`, `current_period_id` | F007 |
+| BudgetPeriod | F004 | `id`, `budget_id`, `start_date`, `end_date`, `total_tokens_used`, `total_cost_usd`, `is_active` | F007 |
+| UsageRecord | F004 | `id`, `budget_id`, `period_id`, `request_id`, `idempotency_key`, `model_id`, `input_tokens`, `output_tokens`, `estimated_tokens`, `cost_usd`, `status` (reserved/reconciled/released) | F007 |
+| AlertRecord | F004 | `id`, `budget_id`, `period_id`, `threshold`, `usage_pct`, `webhook_status` | F007 |
+| ModelTier | F004 | `id`, `org_id`, `name`, `description` | F007 |
+| ModelTierMember | F004 | `id`, `tier_id`, `model_id` | — |
 | RequestLog | F005 | `id`, `request_id`, `trace_id`, `tenant_id`, `user_id`, `model`, `provider`, `input_masked`, `output_masked`, `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`, `status`, `cache_hit`, `created_at` | F007 |
 | SecurityPolicy | F006 | `id`, `org_id`, `pii_categories`, `pii_action` (mask/reject/warn), `injection_defense_enabled`, `content_filter_categories`, `bypass_roles`, `updated_at` | — |
 | GuardResult | F006 | `id`, `request_id`, `scanner_type`, `decision` (pass/block/mask), `details`, `latency_ms`, `created_at` | — |

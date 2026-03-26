@@ -18,12 +18,12 @@ API Key 인증과 JWT 대시보드 세션을 제공하고, Organization > Team >
 - Row-Level Security 또는 tenant_id 기반 데이터 격리
 
 ## Data Ownership
-- **Owns**: Organization, Team, User, ApiKey
-- **References**: AppConfig (F001)
+- **소유**: Organization, Team, User, ApiKey
+- **참조**: AppConfig (F001)
 
 ## Interfaces
-- **Provides**: `POST /auth/login`, `POST /auth/refresh`, `POST /auth/api-keys`, `GET /organizations`, `GET /teams`, `GET /users`, AuthGuard (NestJS Guard), TenantContext 미들웨어
-- **Consumes**: F001 ConfigModule, DatabaseModule, RedisModule
+- **제공**: `POST /auth/login`, `POST /auth/refresh`, `POST /auth/api-keys`, `GET /organizations`, `GET /teams`, `GET /users`, AuthGuard (NestJS Guard), TenantContext 미들웨어
+- **소비**: F001 ConfigModule, DatabaseModule, RedisModule
 
 ## Dependencies
 - F001 Foundation Setup
@@ -33,7 +33,7 @@ API Key 인증과 JWT 대시보드 세션을 제공하고, Organization > Team >
 - **ai-gateway A4 Tenant Context**: 게이트웨이 엣지에서 테넌트 컨텍스트 확립 후 모든 레이어에 전파. 요청 중간에 재조회 금지.
 - **AG-003 Tenant Isolation Bypass**: 에러 핸들러가 다른 테넌트의 캐시 응답을 반환하는 버그 방지. 캐시 키에 tenant ID 필수 포함.
 
-## For /speckit.specify
+## /speckit.specify 참고사항
 - SC 필수: 테넌트 컨텍스트 결정 방식 (API Key → tenant lookup, JWT → tenant claim)
 - SC 필수: RBAC 역할별 허용 작업 매트릭스
 - SC 필수: API Key 생성 시 권한 범위 (모델 제한, IP 제한 등)

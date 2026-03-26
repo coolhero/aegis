@@ -12,7 +12,7 @@
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PK, auto-generated | Unique identifier |
+| `id` | UUID | PK, auto-generated | 고유 식별자 |
 | `name` | varchar(100) | NOT NULL | 조직 표시명 |
 | `slug` | varchar(50) | NOT NULL, UNIQUE | URL-safe 식별자 |
 | `plan` | varchar(20) | NOT NULL, default: `'free'` | 요금제 (free/pro/enterprise) |
@@ -65,7 +65,7 @@ Organization 하위 그룹. 사용자를 팀 단위로 구분.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PK, auto-generated | Unique identifier |
+| `id` | UUID | PK, auto-generated | 고유 식별자 |
 | `org_id` | UUID | FK -> `organizations.id`, NOT NULL | 소속 조직 |
 | `name` | varchar(100) | NOT NULL | 팀 표시명 |
 | `slug` | varchar(50) | NOT NULL | URL-safe 식별자 |
@@ -113,7 +113,7 @@ export class Team {
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PK, auto-generated | Unique identifier |
+| `id` | UUID | PK, auto-generated | 고유 식별자 |
 | `org_id` | UUID | FK -> `organizations.id`, NOT NULL | 소속 조직 |
 | `team_id` | UUID | FK -> `teams.id`, NULLABLE | 소속 팀 (선택) |
 | `email` | varchar(255) | NOT NULL, UNIQUE | 이메일 (로그인 ID) |
@@ -190,7 +190,7 @@ API 인증 키. Organization 소속, 사용자가 생성/관리.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PK, auto-generated | Unique identifier |
+| `id` | UUID | PK, auto-generated | 고유 식별자 |
 | `org_id` | UUID | FK -> `organizations.id`, NOT NULL | 소속 조직 |
 | `user_id` | UUID | FK -> `users.id`, NOT NULL | 생성자 |
 | `key_hash` | varchar(255) | NOT NULL, UNIQUE | SHA-256 해시 |
@@ -304,17 +304,17 @@ const seedUsers = [
   { email: 'viewer@demo.com', name: 'Viewer', role: UserRole.VIEWER, team: 'frontend' },
 ];
 
-// Password for all seed users: 'password123'
-// API Key: aegis_demo_key_... (generated at seed time, printed to console)
+// 모든 seed 사용자의 비밀번호: 'password123'
+// API Key: aegis_demo_key_... (seed 시점에 생성, 콘솔에 출력)
 ```
 
 ## Migration Strategy
 
-- **Initial migration**: Creates `organizations`, `teams`, `users`, `api_keys` tables with all columns, indexes, FK constraints.
-- **Seed migration**: Inserts demo organization, teams, users, and one API key.
-- **Migration command**: `npm run migration:generate -- -n CreateAuthEntities`
-- **Run command**: `npm run migration:run`
-- **Auto-sync**: Enabled in development. Disabled in staging/production.
+- **초기 migration**: `organizations`, `teams`, `users`, `api_keys` 테이블을 모든 컬럼, 인덱스, FK 제약조건과 함께 생성.
+- **Seed migration**: 데모 organization, teams, users, API key 1개 삽입.
+- **Migration 생성 명령**: `npm run migration:generate -- -n CreateAuthEntities`
+- **실행 명령**: `npm run migration:run`
+- **Auto-sync**: 개발 환경에서 활성화. 스테이징/프로덕션에서는 비활성화.
 
 ## Notes
 

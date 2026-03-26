@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-Provider Adapter 패턴으로 LLM 프로바이더를 추상화. OpenAI-호환 형식을 유니버셜 포맷으로 사용하며, Anthropic 어댑터가 양방향 변환을 수행. SSE 스트리밍은 async generator로 구현.
+Provider Adapter 패턴으로 LLM 프로바이더를 추상화한다. OpenAI 호환 형식을 유니버셜 포맷으로 사용하며, Anthropic 어댑터가 양방향 변환을 수행한다. SSE 스트리밍은 async generator로 구현한다.
 
 ## Data Model
 
@@ -86,30 +86,30 @@ export class Model {
 
 ```
 libs/common/src/gateway/
-├── provider.interface.ts    # ProviderAdapter interface
-├── gateway.types.ts         # OpenAI-compatible types
-├── provider.entity.ts       # Provider TypeORM entity
-└── model.entity.ts          # Model TypeORM entity
+├── provider.interface.ts    # ProviderAdapter 인터페이스
+├── gateway.types.ts         # OpenAI 호환 타입
+├── provider.entity.ts       # Provider TypeORM 엔티티
+└── model.entity.ts          # Model TypeORM 엔티티
 
 apps/api/src/gateway/
 ├── gateway.module.ts        # GatewayModule
 ├── gateway.controller.ts    # POST /v1/chat/completions
-├── gateway.service.ts       # Core routing + streaming logic
-├── gateway.controller.spec.ts # Tests
+├── gateway.service.ts       # 핵심 라우팅 + 스트리밍 로직
+├── gateway.controller.spec.ts # 테스트
 └── providers/
     ├── openai.adapter.ts    # OpenAI ProviderAdapter
     ├── anthropic.adapter.ts # Anthropic ProviderAdapter
-    └── provider.registry.ts # Adapter registry + model routing
+    └── provider.registry.ts # 어댑터 레지스트리 + 모델 라우팅
 ```
 
 ## Implementation Phases
 
-### Phase 1: Shared Types & Entities
+### Phase 1: 공유 타입 및 엔티티
 - ProviderAdapter 인터페이스 정의
-- OpenAI-호환 요청/응답 타입 정의
+- OpenAI 호환 요청/응답 타입 정의
 - Provider, Model TypeORM 엔티티
 
-### Phase 2: Provider Adapters
+### Phase 2: 프로바이더 어댑터
 - OpenAI 어댑터 (openai SDK)
 - Anthropic 어댑터 (@anthropic-ai/sdk, 형식 변환 포함)
 - ProviderRegistry (모델명 → 어댑터 라우팅)
@@ -119,7 +119,7 @@ apps/api/src/gateway/
 - GatewayController (SSE 엔드포인트, 에러 핸들링)
 - GatewayModule 통합
 
-### Phase 4: Tests & Integration
+### Phase 4: 테스트 및 통합
 - Unit tests (모킹 기반)
 - app.module.ts 통합
 - package.json 의존성 추가

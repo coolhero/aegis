@@ -8,16 +8,16 @@
 **Org Convention**: none
 **Custom**: specs/domains
 
-## Domain Profile
+## 도메인 프로파일
 
 **Interfaces**: http-api, gui
 **Concerns**: auth, authorization, multi-tenancy, resilience, observability, realtime, stream-processing, external-sdk, audit-logging, compliance, token-budget, prompt-guard
 **Archetype**: ai-gateway
 **Foundation**: typescript-nestjs
 **Context Mode**: greenfield
-**Context Modifiers**: (none)
+**Context Modifiers**: (없음)
 
-## Clarity Index
+## 명확도 지수
 
 **CI Score**: 97% (35/36)
 
@@ -31,14 +31,14 @@
 | Scale & Scope | x1 | 3 | 3 |
 | Constraints | x1 | 3 | 3 |
 
-## Feature Progress
+## Feature 진행 상황
 
 | FID | Name | Status | Tier | Phase | Branch | Notes |
 |-----|------|--------|------|-------|--------|-------|
-| F001 | Foundation Setup | completed | T0 | verified | main | Lint ✅ (eslint.config.mjs), 8/8 SC runtime, verify-report.md |
-| F002 | LLM Gateway Core | completed | T1 | verified | main | 4/4 SC runtime (real LLM), verify-report.md |
-| F003 | Auth & Multi-tenancy | completed | T1 | verified | main | 10/10 SC runtime, inline fix: SC-003 jti, verify-report.md |
-| F004 | Token Budget Management | pending | T1 | pre-context | — | |
+| F001 | Foundation Setup | completed | T0 | verified | main | Lint 완료 (eslint.config.mjs), SC 8/8 런타임 통과, verify-report.md |
+| F002 | LLM Gateway Core | completed | T1 | verified | main | SC 4/4 런타임 통과 (실제 LLM 연동), verify-report.md |
+| F003 | Auth & Multi-tenancy | completed | T1 | verified | main | SC 10/10 런타임 통과, 인라인 수정: SC-003 jti, verify-report.md |
+| F004 | Token Budget Management | verified | T1 | verify | 004-token-budget | SC 13/20 런타임 통과, 7/20 limited. ModelTier 포함. 빌드+테스트 37/37 |
 | F005 | Request Logging & Tracing | pending | T1 | pre-context | — | |
 | F006 | Security Guardrails | pending | T2 | pre-context | — | |
 | F007 | Admin Dashboard | pending | T2 | pre-context | — | |
@@ -48,10 +48,10 @@
 | F011 | Semantic Cache | pending | T3 | pre-context | — | |
 | F012 | Developer Playground | pending | T3 | pre-context | — | |
 
-## Toolchain
+## 도구 체인
 
 | Tool | Status | Command | Notes |
 |------|--------|---------|-------|
-| Build | ✅ available | `npm run build` (nest build api, webpack) | |
-| Test | ✅ available | `npm test` (jest) | 37 tests, 6 suites |
-| Lint | ✅ available | `npm run lint` (eslint v10 + typescript-eslint) | eslint.config.mjs, 0 errors 35 warnings |
+| Build | 사용 가능 | `npm run build` (nest build api, webpack) | |
+| Test | 사용 가능 | `npm test` (jest) | 37개 테스트, 6개 스위트 |
+| Lint | 사용 가능 | `npm run lint` (eslint v10 + typescript-eslint) | eslint.config.mjs, 에러 0건 경고 35건 |

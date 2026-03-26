@@ -395,14 +395,137 @@ Phase 5: → Case Study finalization (EN + KO)
 
 ## Phase 4: Pipeline Execution
 
-> Status: PENDING — will be documented as /smart-sdd pipeline is executed
+> `/smart-sdd pipeline` 실행 결과. F001~F004 (T0+T1 Features)
+
+### 4.1 Feature별 Pipeline 결과 요약
+
+| FID | Name | SC | 런타임 통과 | 주요 발견 | 세션 수 |
+|-----|------|----|------------|-----------|---------|
+| F001 | Foundation Setup | 8/8 | ✅ PASS | Redis degraded 모드 정상. env 검증은 단위테스트 | 1 |
+| F002 | LLM Gateway Core | 4/4 | ✅ PASS | 실제 OpenAI+Anthropic 호출 성공. claude-3-5-haiku 모델명 outdated | 1 |
+| F003 | Auth & Multi-tenancy | 10/10 | ✅ PASS | 버그 1건 발견+수정 (jti 미포함 → refresh token 충돌) | 2 |
+| F004 | Token Budget Management | 13/20 | ⚠️ LIMITED | 예산 CRUD, LLM 차감, 429 차단, Redis fail-closed, ModelTier 검증. 동시성·알림·스트리밍은 limited | 3 |
+
+### 4.2 F001 Foundation Setup
+
+**Pipeline 흐름**: specify → plan → tasks → implement → verify → merge
+**교훈**: 첫 Feature에서 P1(산출물 불완전), P2(verify 스킵) 발견. spec-kit 템플릿을 읽지 않고 간소화된 산출물 생성 → F002부터 개선.
+
+### 4.3 F002 LLM Gateway Core
+
+**Pipeline 흐름**: specify → plan → tasks → implement → verify → merge
+**성과**: 실제 LLM API(OpenAI gpt-4o-mini, Anthropic claude-sonnet-4)로 런타임 검증. SSE 스트리밍 프록시 동작 확인.
+**교훈**: Provider API Key 설정이 필요한 검증은 사용자에게 명시적으로 안내해야 함 (P7).
+
+### 4.4 F003 Auth & Multi-tenancy
+
+**Pipeline 흐름**: specify → plan → tasks → analyze → implement → verify → merge
+**성과**: 10/10 SC 런타임 통과. API Key 인증, JWT 로그인/갱신, RBAC, Cross-tenant 격리, Refresh Token Rotation 모두 검증.
+**인라인 수정**: verify 중 Refresh Token 충돌 버그 발견 → `jti: crypto.randomUUID()` 추가로 즉시 수정.
+**교훈**: P5(런타임 검증 미수행), P6(SC 일부만 런타임) 발견 → 이후 모든 SC를 런타임에서 검증하는 원칙 확립.
+
+### 4.5 F004 Token Budget Management
+
+**Pipeline 흐름**: specify(3회) → plan(2회) → tasks(2회) → analyze → implement → verify → merge
+**특이사항**: 가장 복잡한 Feature. 3차에 걸친 specify 재실행:
+1. 1차: 기본 spec (FR 14개, SC 12개)
+2. 2차 (`--start specify`): Domain Rule Compliance 강화, Edge Case 보완 (FR 17개, SC 15개)
+3. 3차 (step-back): **사용자 도메인 판단 개입** — 모델별 예산 관리(ModelTier) 추가 (FR 22개, SC 20개)
+
+**최종 산출물**: FR 22개, SC 20개, Task 11개(T001~T011), 구현 파일 15개, 데모 스크립트
+
+**런타임 검증 결과 (13/20 SC)**:
+
+| SC | 검증 방법 | 결과 |
+|----|-----------|------|
+| SC-001 | `PUT /budgets/org/:orgId` → 200 + Budget + BudgetPeriod 자동 생성 | ✅ |
+| SC-002 | `PUT /budgets/team/:teamId`, `/user/:userId` → 200 | ✅ |
+| SC-003 | 실제 GPT-4o 호출 + 토큰 차감 (18 tokens) 확인 | ✅ |
+| SC-004 | 예산 10 토큰으로 제한 → LLM 요청 → 429 budget_exceeded | ✅ |
+| SC-011 | `GET /budgets/org/:orgId` → 계층 데이터 반환 | ✅ |
+| SC-012 | viewer 사용자 PUT → 403 Forbidden | ✅ |
+| SC-013 | `docker stop aegis-redis` → LLM 요청 → 503 (fail-closed) | ✅ |
+| SC-016 | `POST /model-tiers` → 201 + premium 티어 + GPT-4o/Claude Sonnet 할당 | ✅ |
+| SC-017 | 동일 User에 global(200K) + premium(5K) 독립 Budget 생성 | ✅ |
+| SC-018 | GPT-4o(premium) → 200 + 티어별+global 동시 차감 | ✅ |
+| SC-019 | premium 소진 → GPT-4o 429 + tier 정보, gpt-4o-mini 200 성공 | ✅ |
+| SC-020 | gpt-4o-mini(티어 미할당) → global 예산만 차감 | ✅ |
+
+**구현 중 발견된 버그 6건**:
+1. TypeORM nullable column + `string | null` 타입 → "Data type Object" 에러 → `type: 'varchar'` 명시
+2. ioredis ESM/CJS 래퍼에서 `redis.status` 접근 불가 → `redis.ping()` 기반 확인으로 변경
+3. `request_id`와 `model_id`가 UUID 타입인데 non-UUID 값 전달 → `randomUUID()` 및 `varchar` 변경
+4. Lua 파일 webpack 번들 미포함 → 인라인 문자열로 변경
+5. `resolveTierForModel`이 UUID로 조회하는데 모델명 전달 → models JOIN 쿼리로 수정
+6. Budget에 `model_tier_id` 추가 시 unique constraint 업데이트 필요
+
+### 4.6 커스텀 도메인 모듈 활용 분석
+
+Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻게 활용되었는지:
+
+#### ai-gateway (Archetype)
+
+| 모듈 섹션 | 활용 단계 | 구체적 활용 |
+|-----------|-----------|------------|
+| A2 (SC Generation Extensions) | specify | Provider routing, Streaming lifecycle, Budget gate, Tenant scope SC 패턴 강제 |
+| A3 (Elaboration Probes) | add (Briefing) | Provider strategy, Routing logic, Budget model 등 도메인 특화 질문으로 Feature 정의 보완 |
+| A4 (Constitution Injection) | init | "Token budget must be checked BEFORE sending request" 등 5개 원칙 → constitution-seed.md 반영 |
+
+#### token-budget (Concern)
+
+| 모듈 섹션 | 활용 단계 | 구체적 활용 |
+|-----------|-----------|------------|
+| S1 (SC Rules) | specify | Budget Check Flow, Deduction Atomicity, Hierarchy Enforcement, Reset Cycle, Alert Thresholds 5개 패턴 강제. Anti-pattern 검출 ("Budget is checked" 같은 모호 표현 거부) |
+| S5 (Elaboration Probes) | add | Granularity, Metric, Reset, Hard vs Soft limit 질문으로 예산 설계 구체화 |
+| S7 (Bug Prevention) | plan, implement | TB-001~005 (Race Condition, Retry Double-Charge, Streaming Drift, Reset Timing, Hierarchy Bypass) → 설계 시 Redis Lua 원자적 처리, 멱등성 키, period_id 분리 등 반영 |
+| S9 (Brief Completion) | add | Budget hierarchy, Metric type, Enforcement behavior, Reset cycle 완성 기준으로 Brief 완전성 검증 |
+
+#### prompt-guard (Concern)
+
+| 모듈 섹션 | 활용 단계 | 구체적 활용 |
+|-----------|-----------|------------|
+| — | (F006에서 활용 예정) | F004까지는 직접 활용 없음. F006 Security Guardrails에서 본격 활용 |
+
+### 4.7 HARD STOP이 가치를 발휘한 사례
+
+| # | 단계 | 사례 | HARD STOP 없었다면 |
+|---|------|------|-------------------|
+| 1 | F004 specify Review | US2-AS4와 SC-007의 UsageRecord 상태값 불일치(`failed` vs `released`) 발견 → 수정 | 잘못된 상태값으로 implement → 런타임 에러 or 데이터 불일치 |
+| 2 | F004 specify Review | 사용자가 F001~F003 한국어 전환 요청 → Review 시점에서 cross-Feature 작업 수행 | 한국어 전환 기회 놓침 or implement 이후 대규모 재작업 |
+| 3 | F004 verify | 사용자가 "모델별 예산 관리 필요" 도메인 판단 개입 → spec 재설계 결정 | 모델 무관 예산 시스템으로 완성 → 나중에 대규모 리팩토링 |
+| 4 | F003 verify | Refresh Token jti 충돌 버그 → verify에서 발견+수정 | 운영 환경에서 1초 내 2회 로그인 시 토큰 충돌 |
+
+**핵심 교훈**: HARD STOP은 단순한 "승인 절차"가 아니라, 사용자가 **도메인 지식을 주입할 수 있는 유일한 시점**이다. F004에서 "모델별 예산" 결정은 코드 분석으로는 도출할 수 없고, 사업 요구사항에서 나온다.
+
+### 4.8 Skill Feedback 요약 (P1~P13)
+
+13건의 skill feedback이 발생. 에스컬레이션 패턴별 분류:
+
+| 패턴 | 건수 | 대표 사례 |
+|------|------|-----------|
+| **산출물 품질** | P1 | spec-kit 템플릿 미준수 → 간소화된 산출물 |
+| **verify 약화** | P2, P5, P6, P7 | verify 스킵, 런타임 미수행, 부분 검증, 자동 합격 처리 |
+| **규칙 위반** | P3, P9 | Feature 병렬 실행 금지 위반, HARD STOP 스킵 |
+| **브랜치 관리** | P4, P12 | Feature Branch 미생성, `--start` 재실행 시 Pre-Flight 미수행 |
+| **산출물 누락** | P8 | verify-report.md 미생성 |
+| **설계 이슈** | P10, P11, P13 | 기존 산출물 처리 지침 부재, US-SC 불일치 미감지, 환경 확인 미수행 |
+| **데모 누락** | P14 | implement/verify 완료 후 데모 스크립트 미생성 (MANDATORY RULE 2 위반) |
+
+**개선 추이**: P1~P3 (초기, 치명적) → P5~P7 (중기, verify 품질) → P10~P13 (후기, 세부 이슈). 시간이 지남에 따라 심각도가 낮아지는 추세.
+
+**가장 중요한 교훈**:
+1. **verify는 "빌드+테스트 통과"가 아니라 "실제 서버에서 SC 검증"** (P2, P5, P6)
+2. **HARD STOP은 절대 건너뛰지 않는다** (P9)
+3. **Feature는 반드시 순차 실행** (P3)
+4. **환경 상태를 먼저 확인하고, 없을 때만 사용자에게 요청** (P7, P13)
 
 ---
 
 ## Appendix: Skill Feedback Log
 
-> Issues encountered during the process will be logged here and in `docs/skill-feedback.md`
+> 전체 13건의 skill feedback은 `docs/skill-feedback.md`에 기록됨.
+> 주요 이슈: P1(산출물 불완전), P3(병렬 실행 위반), P5(런타임 검증 미수행), P9(HARD STOP 스킵), P12(Pre-Flight 미수행)
 
 ---
 
-*Last updated: 2026-03-25*
+*Last updated: 2026-03-26*

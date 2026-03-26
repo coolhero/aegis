@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-| Tool | Version | Check Command |
+| 도구 | 버전 | 확인 명령 |
 |------|---------|---------------|
 | Node.js | 20+ | `node --version` |
 | npm | 10+ | `npm --version` |
@@ -14,50 +14,50 @@
 
 ## Setup
 
-### 1. Clone the Repository
+### 1. 레포지토리 클론
 
 ```bash
 git clone <repository-url> aegis
 cd aegis
 ```
 
-### 2. Configure Environment Variables
+### 2. 환경 변수 구성
 
 ```bash
 cp .env.example .env
 ```
 
-The default `.env.example` values work with the Docker Compose configuration out of the box. No changes needed for local development.
+기본 `.env.example` 값은 Docker Compose 구성과 바로 호환된다. 로컬 개발 시 변경이 필요 없다.
 
-### 3. Start Infrastructure
+### 3. 인프라 시작
 
 ```bash
 docker compose up -d
 ```
 
-This starts:
-- **PostgreSQL** on `localhost:5432`
-- **Redis** on `localhost:6379`
+다음이 시작된다:
+- **PostgreSQL** — `localhost:5432`
+- **Redis** — `localhost:6379`
 
-### 4. Install Dependencies
+### 4. 의존성 설치
 
 ```bash
 npm install
 ```
 
-### 5. Run Database Migrations
+### 5. 데이터베이스 마이그레이션 실행
 
 ```bash
 npm run migration:run
 ```
 
-### 6. Start the Application
+### 6. 애플리케이션 시작
 
 ```bash
 npm run start:dev
 ```
 
-The API server starts on `http://localhost:3000` with hot-reload enabled.
+API 서버가 핫 리로드가 활성화된 상태로 `http://localhost:3000`에서 시작된다.
 
 ## Verify
 
@@ -67,7 +67,7 @@ The API server starts on `http://localhost:3000` with hot-reload enabled.
 curl http://localhost:3000/health
 ```
 
-Expected response:
+예상 응답:
 
 ```json
 {
@@ -80,17 +80,17 @@ Expected response:
 }
 ```
 
-### Verify Database Connection
+### 데이터베이스 연결 확인
 
-The health check `components.db` field should show `"up"`. If it shows `"down"`, check PostgreSQL container logs:
+헬스 체크의 `components.db` 필드가 `"up"`이어야 한다. `"down"`으로 표시되면 PostgreSQL 컨테이너 로그를 확인한다:
 
 ```bash
 docker compose logs postgres
 ```
 
-### Verify Redis Connection
+### Redis 연결 확인
 
-The health check `components.redis` field should show `"up"`. If it shows `"down"`, check Redis container logs:
+헬스 체크의 `components.redis` 필드가 `"up"`이어야 한다. `"down"`으로 표시되면 Redis 컨테이너 로그를 확인한다:
 
 ```bash
 docker compose logs redis
@@ -98,70 +98,70 @@ docker compose logs redis
 
 ## Common Issues
 
-### Port 5432 Already in Use
+### 포트 5432가 이미 사용 중
 
-Another PostgreSQL instance is running on the default port.
+다른 PostgreSQL 인스턴스가 기본 포트에서 실행 중이다.
 
 ```bash
-# Find the process
+# 프로세스 찾기
 lsof -i :5432
-# Stop it, or change DATABASE_PORT in .env and docker-compose.yml
+# 프로세스를 중지하거나, .env와 docker-compose.yml에서 DATABASE_PORT를 변경
 ```
 
-### Port 6379 Already in Use
+### 포트 6379가 이미 사용 중
 
-Another Redis instance is running on the default port.
+다른 Redis 인스턴스가 기본 포트에서 실행 중이다.
 
 ```bash
-# Find the process
+# 프로세스 찾기
 lsof -i :6379
-# Stop it, or change REDIS_PORT in .env and docker-compose.yml
+# 프로세스를 중지하거나, .env와 docker-compose.yml에서 REDIS_PORT를 변경
 ```
 
-### Docker Containers Not Starting
+### Docker 컨테이너가 시작되지 않음
 
 ```bash
-# Check container status
+# 컨테이너 상태 확인
 docker compose ps
 
-# View logs for a specific service
+# 특정 서비스의 로그 보기
 docker compose logs postgres
 docker compose logs redis
 
-# Restart all services
+# 모든 서비스 재시작
 docker compose down && docker compose up -d
 ```
 
-### Environment Variable Validation Failure
+### 환경 변수 유효성 검사 실패
 
-If the app fails to start with a validation error, ensure all required variables are set in `.env`. Compare with `.env.example` for reference.
+유효성 검사 오류로 앱 시작이 실패하면, `.env`에 모든 필수 변수가 설정되어 있는지 확인한다. `.env.example`을 참고한다.
 
 ```bash
 diff .env .env.example
 ```
 
-### TypeORM Migration Errors
+### TypeORM 마이그레이션 오류
 
 ```bash
-# Check migration status
+# 마이그레이션 상태 확인
 npm run migration:show
 
-# Generate a new migration after entity changes
+# 엔티티 변경 후 새 마이그레이션 생성
 npm run migration:generate -- -n MigrationName
 
-# Revert the last migration
+# 마지막 마이그레이션 되돌리기
 npm run migration:revert
 ```
 
-## Stopping the Environment
+## 환경 중지
 
 ```bash
-# Stop all containers (preserves data)
+# 모든 컨테이너 중지 (데이터 보존)
 docker compose stop
 
-# Stop and remove containers (preserves data via volumes)
+# 컨테이너 중지 및 제거 (볼륨을 통해 데이터 보존)
 docker compose down
 
-# Stop and remove everything including data
+# 데이터를 포함하여 모든 것 중지 및 제거
 docker compose down -v
 ```

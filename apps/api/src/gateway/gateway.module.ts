@@ -8,9 +8,10 @@ import { GatewayController } from './gateway.controller';
 import { GatewayService } from './gateway.service';
 import { ProviderRegistry } from './providers/provider.registry';
 import { ApiKeyService } from '../auth/api-key.service';
+import { BudgetModule } from '../budget/budget.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Provider, Model, ApiKey])],
+  imports: [TypeOrmModule.forFeature([Provider, Model, ApiKey]), BudgetModule],
   controllers: [GatewayController],
   providers: [GatewayService, ProviderRegistry, LoggerService, ApiKeyService],
   exports: [GatewayService, ProviderRegistry],

@@ -82,8 +82,8 @@ aegis/
 - ResponseInterceptor
 
 ### Phase 4: Health Check
-- HealthController with DB + Redis checks
-- Individual + overall status
+- HealthController (DB + Redis 체크 포함)
+- 개별 + 전체 상태
 
 ## Dependencies
 - `@nestjs/core`, `@nestjs/common`, `@nestjs/config`
