@@ -18,7 +18,7 @@
 | AlertRecord | F004 | `id`, `budget_id`, `period_id`, `threshold`, `usage_pct`, `webhook_status` | F007 |
 | ModelTier | F004 | `id`, `org_id`, `name`, `description` | F007 |
 | ModelTierMember | F004 | `id`, `tier_id`, `model_id` | — |
-| RequestLog | F005 | `id`, `request_id`, `trace_id`, `tenant_id`, `user_id`, `model`, `provider`, `input_masked`, `output_masked`, `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`, `status`, `cache_hit`, `created_at` | F007 |
+| RequestLog | F005 | `id`, `request_id` (unique), `trace_id`, `org_id` (FK), `user_id` (FK), `team_id` (FK, nullable), `model`, `provider`, `input_masked`, `output_masked`, `input_tokens`, `output_tokens`, `cost_usd` (decimal), `latency_ms`, `status`, `error_detail`, `cache_hit`, `estimated`, `langfuse_trace_id`, `input_size`, `output_size`, `created_at` | F007 |
 | SecurityPolicy | F006 | `id`, `org_id`, `pii_categories`, `pii_action` (mask/reject/warn), `injection_defense_enabled`, `content_filter_categories`, `bypass_roles`, `updated_at` | — |
 | GuardResult | F006 | `id`, `request_id`, `scanner_type`, `decision` (pass/block/mask), `details`, `latency_ms`, `created_at` | — |
 | Document | F009 | `id`, `org_id`, `title`, `content_type`, `chunk_count`, `embedding_status` (pending/processing/done/failed), `created_at` | — |

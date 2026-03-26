@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { AuthModule } from './auth/auth.module';
 import { BudgetModule } from './budget/budget.module';
+import { LoggingModule } from './logging/logging.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { BudgetModule } from './budget/budget.module';
     GatewayModule,
     AuthModule,
     BudgetModule,
+    LoggingModule,
   ],
   providers: [LoggerService],
   exports: [LoggerService],

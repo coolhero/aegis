@@ -7,6 +7,7 @@ import {
   HttpException,
   HttpStatus,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ChatCompletionRequest } from '@aegis/common/gateway';
@@ -17,6 +18,7 @@ import { ApiKeyService } from '../auth/api-key.service';
 import { BudgetGuard } from '../budget/budget.guard';
 import { BudgetEngineService } from '../budget/budget-engine.service';
 import { BudgetAlertService } from '../budget/budget-alert.service';
+import { RequestLoggerInterceptor } from '../logging/request-logger.interceptor';
 
 @Controller('v1')
 export class GatewayController {
@@ -30,6 +32,7 @@ export class GatewayController {
 
   @Post('chat/completions')
   @UseGuards(ApiKeyAuthGuard, BudgetGuard)
+  @UseInterceptors(RequestLoggerInterceptor)
   async chatCompletions(
     @Body() request: ChatCompletionRequest,
     @Req() req: any,

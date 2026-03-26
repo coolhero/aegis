@@ -13,6 +13,7 @@ import { ApiKeyAuthGuard } from '@aegis/common';
 import { BudgetEngineService } from '../budget/budget-engine.service';
 import { BudgetAlertService } from '../budget/budget-alert.service';
 import { BudgetGuard } from '../budget/budget.guard';
+import { RequestLoggerInterceptor } from '../logging/request-logger.interceptor';
 
 describe('GatewayController', () => {
   let controller: GatewayController;
@@ -71,6 +72,8 @@ describe('GatewayController', () => {
       .useValue({ canActivate: () => true })
       .overrideGuard(BudgetGuard)
       .useValue({ canActivate: () => true })
+      .overrideInterceptor(RequestLoggerInterceptor)
+      .useValue({ intercept: (_ctx: any, next: any) => next.handle() })
       .compile();
 
     controller = module.get<GatewayController>(GatewayController);
