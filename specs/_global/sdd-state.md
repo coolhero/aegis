@@ -43,7 +43,7 @@
 | F003 | Auth & Multi-tenancy      | completed   | T1   | verified    | main                    | SC 10/10 런타임 통과, 인라인 수정: SC-003 jti, verify-report.md                                 |
 | F004 | Token Budget Management   | completed   | T1   | verified    | main                    | FR-005 reconciliation 수정, FR-016 pessimistic estimation. SC-003/014 런타임 통과. 107 tests |
 | F005 | Request Logging & Tracing | completed   | T1   | verified    | main                    | SC 8/16 런타임, 5/16 unit-only (limited). 107tests. verify-report.md                     |
-| F006 | Security Guardrails       | in_progress | T2   | implement   | 006-security-guardrails | specify✅ plan✅ tasks✅ analyze✅                                                                           |
+| F006 | Security Guardrails       | completed   | T2   | verified    | main                    | SC 8/8 런타임(demo CI), 61 unit tests, 168 total. verify-report.md PASS |                                                                           |
 | F007 | Admin Dashboard           | pending     | T2   | pre-context | —                       |                                                                                       |
 | F008 | Provider Fallback & LB    | pending     | T2   | pre-context | —                       |                                                                                       |
 | F009 | Knowledge Integration     | pending     | T3   | pre-context | —                       |                                                                                       |
