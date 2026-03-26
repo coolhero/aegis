@@ -38,7 +38,7 @@
 | F001 | Foundation Setup | completed | T0 | verified | main | Lint 완료 (eslint.config.mjs), SC 8/8 런타임 통과, verify-report.md |
 | F002 | LLM Gateway Core | completed | T1 | verified | main | SC 4/4 런타임 통과 (실제 LLM 연동), verify-report.md |
 | F003 | Auth & Multi-tenancy | completed | T1 | verified | main | SC 10/10 런타임 통과, 인라인 수정: SC-003 jti, verify-report.md |
-| F004 | Token Budget Management | verified | T1 | verify | 004-token-budget | SC 13/20 런타임 통과, 7/20 limited. ModelTier 포함. 빌드+테스트 37/37 |
+| F004 | Token Budget Management | completed | T1 | verified | main | SC 13/20 런타임 통과, 7/20 limited. ModelTier 포함. verify-report.md |
 | F005 | Request Logging & Tracing | pending | T1 | pre-context | — | |
 | F006 | Security Guardrails | pending | T2 | pre-context | — | |
 | F007 | Admin Dashboard | pending | T2 | pre-context | — | |
