@@ -1,11 +1,11 @@
 # Pre-Context: F002 — LLM Gateway Core
 
 ## Feature Summary
-OpenAI, Anthropic 프로바이더 추상화 레이어와 OpenAI-호환 통합 API (`/v1/chat/completions`)를 제공한다. SSE 스트리밍 프록시를 통해 토큰 단위 실시간 응답을 지원한다.
+OpenAI, Anthropic 프로바이더 추상화 레이어와 OpenAI 호환 통합 API (`/v1/chat/completions`)를 제공한다. SSE 스트리밍 프록시를 통해 토큰 단위 실시간 응답을 지원한다.
 
 ## User & Purpose
 - **Actor(s)**: 클라이언트 애플리케이션 개발자, AI 서비스 소비자
-- **Problem**: 여러 LLM 프로바이더를 직접 통합하면 각각의 SDK, 인증, 응답 형식을 관리해야 하는 복잡성 발생
+- **Problem**: 여러 LLM 프로바이더를 직접 통합하면 각각의 SDK, 인증, 응답 형식을 관리해야 하는 복잡성이 발생한다
 - **Key Scenarios**: OpenAI SDK 호환 클라이언트로 Anthropic 모델 호출, SSE 스트리밍으로 실시간 채팅 응답 수신, 프로바이더 변경 시 클라이언트 코드 무변경
 
 ## Capabilities

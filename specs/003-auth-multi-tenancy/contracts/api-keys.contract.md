@@ -2,7 +2,7 @@
 
 **Feature**: F003 — Auth & Multi-tenancy
 **Base Path**: `/api-keys`
-**Authentication**: Bearer Token (JWT), admin role required
+**Authentication**: Bearer Token (JWT), admin 역할 필요
 
 ---
 

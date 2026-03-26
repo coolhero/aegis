@@ -2,7 +2,7 @@
 
 **Feature**: F003 — Auth & Multi-tenancy
 **Base Path**: `/`
-**Authentication**: Bearer Token (JWT), admin role required for mutations
+**Authentication**: Bearer Token (JWT), 변경(mutation) 작업에 admin 역할 필요
 
 ---
 
@@ -72,7 +72,7 @@
 
 **Description**: 현재 사용자 소속 조직의 팀 목록.
 
-**Query**: `?orgId=uuid` (optional, admin only)
+**Query**: `?orgId=uuid` (선택, admin 전용)
 
 ### Response — 200 OK
 
@@ -112,7 +112,7 @@
 
 **Description**: 현재 사용자 소속 조직의 사용자 목록.
 
-**Query**: `?teamId=uuid` (optional filter)
+**Query**: `?teamId=uuid` (선택 필터)
 
 ### Response — 200 OK
 

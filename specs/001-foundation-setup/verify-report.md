@@ -1,6 +1,6 @@
 # Verify Report — F001-Foundation Setup
 
-> Generated at verify completion. This report is the evidence that the Feature meets its Spec contract.
+> 검증 완료 시 생성됨. 이 보고서는 Feature가 Spec 계약을 충족한다는 증거이다.
 > Status: PASS
 
 ---
@@ -17,7 +17,7 @@
 | Lint | PASS — 0 errors, 35 warnings |
 | Runtime Verified | Yes |
 | Demo Executed | Yes |
-| Cross-Feature | N/A (first Feature) |
+| Cross-Feature | N/A (첫 번째 Feature) |
 | **Overall** | **PASS** |
 
 ---
@@ -38,10 +38,10 @@
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Build | ✅ | `npm run build` — webpack compiled successfully |
-| TypeScript | ✅ | No type errors (strict mode) |
+| Build | ✅ | `npm run build` — webpack 컴파일 성공 |
+| TypeScript | ✅ | 타입 오류 없음 (strict mode) |
 | Lint | ✅ | 0 errors, 35 warnings (eslint v10 + typescript-eslint, eslint.config.mjs) |
-| Unit Tests | ✅ | 37/37 passed (6 suites) |
+| Unit Tests | ✅ | 37/37 통과 (6 suites) |
 
 ---
 
@@ -49,26 +49,26 @@
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Entity Registry Consistency | ⚠️ | AppConfig in registry but no entity file — ConfigModule.forRoot() used instead |
-| API Contract Compatibility | ✅ | GET /health available and functional |
-| Plan Deviation | ✅ | APIs match, tasks 100% |
+| Entity Registry Consistency | ⚠️ | AppConfig가 레지스트리에 있지만 엔티티 파일 없음 — 대신 ConfigModule.forRoot() 사용 |
+| API Contract Compatibility | ✅ | GET /health 사용 가능 및 기능 정상 |
+| Plan Deviation | ✅ | API 일치, 태스크 100% |
 
 ---
 
 ## Phase 3: SC Runtime Verification
 
-> Application: localhost:3000. Database: up. Redis: up.
+> 애플리케이션: localhost:3000. 데이터베이스: up. Redis: up.
 
 | SC | Description | Category | Method | Expected | Actual | Result |
 |----|-------------|----------|--------|----------|--------|--------|
-| US1-AS1 | App starts, listens :3000 | api-auto | runtime: server start + curl GET /health | 200 | 200 | ✅ |
-| US1-AS2 | GET /health → ok | api-auto | runtime: curl GET /health → 200 | `{"status":"ok","components":{"db":"up","redis":"up"}}` | Exact match | ✅ |
-| US1-AS3 | Docker containers healthy | api-auto | runtime: docker compose ps | postgres+redis healthy | Both Up (healthy) | ✅ |
-| US2-AS1 | Health ok (all up) | api-auto | runtime: curl GET /health → 200 | 200, status:ok | 200, status:ok | ✅ |
-| US2-AS2 | Redis down → degraded | api-auto | runtime: curl GET /health (redis stopped) → 200 | 200, status:degraded, redis:down | `{"status":"degraded","components":{"db":"up","redis":"down"}}` | ✅ |
-| US3-AS1 | Missing DATABASE_HOST → fail | api-auto | RUNTIME_BLOCKED: requires process restart with invalid env — verified via unit test as proxy (env.validation.spec.ts) | Throws error | Throws error | ✅ |
-| US3-AS2 | Invalid DATABASE_PORT → fail | api-auto | RUNTIME_BLOCKED: requires process restart with invalid env — verified via unit test as proxy (env.validation.spec.ts) | Validation error | Validation error | ✅ |
-| US3-AS3 | Valid env → boot | api-auto | runtime: server started successfully | No errors | Boot successful | ✅ |
+| US1-AS1 | 앱 시작, :3000 수신 대기 | api-auto | runtime: 서버 시작 + curl GET /health | 200 | 200 | ✅ |
+| US1-AS2 | GET /health → ok | api-auto | runtime: curl GET /health → 200 | `{"status":"ok","components":{"db":"up","redis":"up"}}` | 정확히 일치 | ✅ |
+| US1-AS3 | Docker 컨테이너 정상 | api-auto | runtime: docker compose ps | postgres+redis 정상 | 둘 다 Up (healthy) | ✅ |
+| US2-AS1 | 헬스 ok (모두 up) | api-auto | runtime: curl GET /health → 200 | 200, status:ok | 200, status:ok | ✅ |
+| US2-AS2 | Redis 다운 → degraded | api-auto | runtime: curl GET /health (redis 중지됨) → 200 | 200, status:degraded, redis:down | `{"status":"degraded","components":{"db":"up","redis":"down"}}` | ✅ |
+| US3-AS1 | DATABASE_HOST 누락 → 실패 | api-auto | RUNTIME_BLOCKED: 잘못된 env로 프로세스 재시작 필요 — 유닛 테스트로 대체 검증 (env.validation.spec.ts) | 오류 throw | 오류 throw | ✅ |
+| US3-AS2 | 잘못된 DATABASE_PORT → 실패 | api-auto | RUNTIME_BLOCKED: 잘못된 env로 프로세스 재시작 필요 — 유닛 테스트로 대체 검증 (env.validation.spec.ts) | 유효성 검사 오류 | 유효성 검사 오류 | ✅ |
+| US3-AS3 | 유효한 env → 부팅 | api-auto | runtime: 서버 성공적으로 시작 | 오류 없음 | 부팅 성공 | ✅ |
 
 ---
 
@@ -76,7 +76,7 @@
 
 | Demo | Command | Result |
 |------|---------|--------|
-| Health endpoint | `curl http://localhost:3000/health` | ✅ 200 ok |
+| Health 엔드포인트 | `curl http://localhost:3000/health` | ✅ 200 ok |
 
 ---
 
@@ -96,14 +96,14 @@ docker compose ps
 → aegis-postgres Up (healthy), aegis-redis Up (healthy)
 
 US3 (env validation):
-test-covered: env.validation.spec.ts — 37/37 passed
+test-covered: env.validation.spec.ts — 37/37 통과
 ```
 
 ---
 
 ## Decision
 
-- [x] **READY FOR MERGE** — All SCs verified, demo passes, no blocking issues
+- [x] **READY FOR MERGE** — 모든 SC 검증 완료, 데모 통과, 차단 이슈 없음
 
 ---
 

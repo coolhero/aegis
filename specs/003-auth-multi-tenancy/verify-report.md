@@ -1,30 +1,30 @@
 # Verify Report — F003-Auth & Multi-tenancy
 
-> Generated at verify completion. This report is the evidence that the Feature meets its Spec contract.
+> Feature가 Spec 계약을 충족하는지에 대한 증거로, 검증 완료 시 생성됨.
 > Status: PASS
 
 ---
 
-## Summary
+## 요약
 
-| Metric | Result |
+| 지표 | 결과 |
 |--------|--------|
 | Feature | F003-Auth & Multi-tenancy |
 | Spec SCs | 10 (SC-001 ~ SC-010) |
-| SCs Verified | 10/10 |
-| Build | PASS |
-| Tests | 37/37 tests (6 suites) |
+| 검증된 SCs | 10/10 |
+| 빌드 | PASS |
+| 테스트 | 37/37 tests (6 suites) |
 | Lint | PASS — 0 errors, 35 warnings |
-| Runtime Verified | Yes (all SCs via curl against running server) |
-| Demo Executed | Yes (--ci mode) |
-| Cross-Feature | PASS (F001 health, F002 gateway integrated) |
-| **Overall** | **PASS** |
+| 런타임 검증 | Yes (실행 중인 서버에 대해 curl로 모든 SCs 검증) |
+| 데모 실행 | Yes (--ci 모드) |
+| Cross-Feature | PASS (F001 health, F002 gateway 통합) |
+| **종합** | **PASS** |
 
 ---
 
-## Phase File Audit
+## Phase 파일 감사
 
-| Phase | File Read? | First Heading Quoted |
+| Phase | 파일 읽기 여부 | 첫 번째 헤딩 인용 |
 |-------|-----------|---------------------|
 | 0 | ✅ verify-preflight.md | "### Phase 0: Runtime Environment Readiness (UI Features only)" |
 | 1 | ✅ verify-build-test.md | "### Phase 1: Execution Verification (BLOCKING)" |
@@ -34,84 +34,84 @@
 
 ---
 
-## Phase 1: Build + Test + Lint
+## Phase 1: 빌드 + 테스트 + Lint
 
-| Check | Result | Details |
+| 점검 항목 | 결과 | 세부 사항 |
 |-------|--------|---------|
-| Build | ✅ | `npm run build` — webpack compiled successfully |
-| TypeScript | ✅ | No type errors |
+| 빌드 | ✅ | `npm run build` — webpack 컴파일 성공 |
+| TypeScript | ✅ | 타입 에러 없음 |
 | Lint | ✅ | 0 errors, 35 warnings (eslint v10 + typescript-eslint, eslint.config.mjs) |
-| Unit Tests | ✅ | 37/37 passed (6 suites) |
+| 유닛 테스트 | ✅ | 37/37 통과 (6 suites) |
 
 ---
 
-## Phase 2: Cross-Feature Integration
+## Phase 2: Cross-Feature 통합
 
-| Check | Result | Details |
+| 점검 항목 | 결과 | 세부 사항 |
 |-------|--------|---------|
-| Entity Registry Consistency | ✅ | Organization, Team, User, ApiKey — 4 entities match registry |
-| API Contract Compatibility | ✅ | 13 API endpoints match contracts/ |
-| F001 Dependency | ✅ | ConfigModule, DatabaseModule consumed |
-| F002 Integration | ✅ | GatewayController protected by ApiKeyAuthGuard + model scope check |
-| Plan Deviation | ✅ | 4 entities match, 13 API endpoints, tasks 100% |
+| Entity Registry 일관성 | ✅ | Organization, Team, User, ApiKey — 4개 엔티티가 registry와 일치 |
+| API Contract 호환성 | ✅ | 13개 API 엔드포인트가 contracts/와 일치 |
+| F001 의존성 | ✅ | ConfigModule, DatabaseModule 소비 |
+| F002 통합 | ✅ | GatewayController에 ApiKeyAuthGuard + 모델 scope 검사 적용 |
+| 계획 대비 편차 | ✅ | 4개 엔티티 일치, 13개 API 엔드포인트, 작업 100% |
 
 ---
 
-## Phase 3: SC Runtime Verification
+## Phase 3: SC 런타임 검증
 
-> Application: localhost:3000. Database: up. Redis: up. OPENAI_API_KEY: set. ANTHROPIC_API_KEY: set.
+> 애플리케이션: localhost:3000. 데이터베이스: 실행 중. Redis: 실행 중. OPENAI_API_KEY: 설정됨. ANTHROPIC_API_KEY: 설정됨.
 
-| SC | Description | Category | Method | Expected | Actual | Result |
+| SC | 설명 | 카테고리 | 방법 | 예상 | 실제 | 결과 |
 |----|-------------|----------|--------|----------|--------|--------|
-| SC-001 | API Key valid → 200 | api-auto | runtime: curl POST /v1/chat/completions with x-api-key → 200 | 200 + LLM response | 200 + gpt-4o-mini response | ✅ |
-| SC-001 | API Key invalid → 401 | api-auto | runtime: curl POST /v1/chat/completions with invalid x-api-key → 401 | 401 | 401 "Invalid API key" | ✅ |
-| SC-002 | Login valid → 200 | api-auto | runtime: curl POST /auth/login → 200 | 200 + tokens + user | 200 + accessToken + refreshToken + user | ✅ |
-| SC-002 | Login invalid → 401 | api-auto | runtime: curl POST /auth/login (wrong password) → 401 | 401 | 401 "Invalid credentials" | ✅ |
-| SC-003 | Refresh → new tokens | api-auto | runtime: curl POST /auth/refresh → 200 | 200 + new token pair | 200 + new tokens | ✅ |
-| SC-003 | Refresh reuse → 401 | api-auto | runtime: curl POST /auth/refresh (old token) → 401 | 401 (rotation enforced) | 401 "Invalid refresh token" | ✅ |
-| SC-004 | Org/Team/User CRUD | api-auto | runtime: curl GET /organizations → 200, GET /teams → 200, GET /users → 200 | 200 + data | 200 + 1 org, 2 teams, 3 users | ✅ |
-| SC-005 | RBAC member write → 403 | api-auto | runtime: curl POST /teams as member → 403 | 403 | 403 "Insufficient permissions" | ✅ |
-| SC-006 | Key create → raw key | api-auto | runtime: curl POST /api-keys → 201 | 201 + raw key | 201 + `key:"aegis_..."` | ✅ |
-| SC-006 | Key revoke → 200 | api-auto | runtime: curl DELETE /api-keys/:id → 200 | 200 + revoked | 200 + revoked:true | ✅ |
-| SC-007 | Cross-tenant → 403 | api-auto | runtime: curl GET /organizations/:otherOrgId → 403 | 403 | 403 "Access denied" | ✅ |
-| SC-008 | TenantContext propagation | api-auto | runtime: curl (verified via SC-004 + SC-007 tenant scoping) | Correct scoping | All queries scoped to tenant | ✅ |
-| SC-009 | Scoped key + wrong model → 403 | api-auto | runtime: curl POST /v1/chat/completions (scoped key + disallowed model) → 403 | 403 | 403 "API key does not have access to model" | ✅ |
-| SC-010 | Seed data present | api-auto | runtime: curl GET /users → 200 | 3 seed users | 3 users present | ✅ |
+| SC-001 | 유효한 API Key → 200 | api-auto | 런타임: curl POST /v1/chat/completions with x-api-key → 200 | 200 + LLM 응답 | 200 + gpt-4o-mini 응답 | ✅ |
+| SC-001 | 무효한 API Key → 401 | api-auto | 런타임: curl POST /v1/chat/completions with 무효한 x-api-key → 401 | 401 | 401 "Invalid API key" | ✅ |
+| SC-002 | 유효한 로그인 → 200 | api-auto | 런타임: curl POST /auth/login → 200 | 200 + tokens + user | 200 + accessToken + refreshToken + user | ✅ |
+| SC-002 | 무효한 로그인 → 401 | api-auto | 런타임: curl POST /auth/login (잘못된 비밀번호) → 401 | 401 | 401 "Invalid credentials" | ✅ |
+| SC-003 | Refresh → 새 토큰 | api-auto | 런타임: curl POST /auth/refresh → 200 | 200 + 새 토큰 쌍 | 200 + 새 토큰 | ✅ |
+| SC-003 | Refresh 재사용 → 401 | api-auto | 런타임: curl POST /auth/refresh (이전 토큰) → 401 | 401 (rotation 적용) | 401 "Invalid refresh token" | ✅ |
+| SC-004 | Org/Team/User CRUD | api-auto | 런타임: curl GET /organizations → 200, GET /teams → 200, GET /users → 200 | 200 + 데이터 | 200 + 1 org, 2 teams, 3 users | ✅ |
+| SC-005 | RBAC member 쓰기 → 403 | api-auto | 런타임: curl POST /teams as member → 403 | 403 | 403 "Insufficient permissions" | ✅ |
+| SC-006 | Key 생성 → 원본 key | api-auto | 런타임: curl POST /api-keys → 201 | 201 + 원본 key | 201 + `key:"aegis_..."` | ✅ |
+| SC-006 | Key 폐기 → 200 | api-auto | 런타임: curl DELETE /api-keys/:id → 200 | 200 + 폐기됨 | 200 + revoked:true | ✅ |
+| SC-007 | Cross-tenant → 403 | api-auto | 런타임: curl GET /organizations/:otherOrgId → 403 | 403 | 403 "Access denied" | ✅ |
+| SC-008 | TenantContext 전파 | api-auto | 런타임: curl (SC-004 + SC-007 tenant scoping을 통해 검증) | 올바른 scoping | 모든 쿼리가 tenant로 scoped | ✅ |
+| SC-009 | Scoped key + 잘못된 모델 → 403 | api-auto | 런타임: curl POST /v1/chat/completions (scoped key + 비허용 모델) → 403 | 403 | 403 "API key does not have access to model" | ✅ |
+| SC-010 | Seed 데이터 존재 | api-auto | 런타임: curl GET /users → 200 | 3명의 seed 사용자 | 3명의 사용자 존재 | ✅ |
 
-### Inline Fix Applied During Verify
+### 검증 중 적용된 인라인 수정
 
-| Bug | Severity | Fix | Files | SC Affected |
+| 버그 | 심각도 | 수정 내용 | 파일 | 영향받는 SC |
 |-----|----------|-----|-------|-------------|
-| Refresh Token Rotation (same-second JWTs identical) | Minor | Added `jti: crypto.randomUUID()` to refresh token payload | auth.service.ts (1 file) | SC-003 |
+| Refresh Token Rotation (같은 초에 발급된 JWT가 동일) | Minor | Refresh token payload에 `jti: crypto.randomUUID()` 추가 | auth.service.ts (1개 파일) | SC-003 |
 
 ---
 
-## Phase 4: Demo Execution
+## Phase 4: 데모 실행
 
-| Demo | Command | Exit Code | Result |
+| 데모 | 명령 | 종료 코드 | 결과 |
 |------|---------|-----------|--------|
-| CI mode | `demos/F003-auth-multi-tenancy.sh --ci` | 0 | ✅ |
+| CI 모드 | `demos/F003-auth-multi-tenancy.sh --ci` | 0 | ✅ |
 
 ---
 
-## Evidence Log
+## 증거 로그
 
 ```
-SC-001 (valid key):
+SC-001 (유효한 key):
 POST /v1/chat/completions + x-api-key: aegis_... → 200
 
-SC-001 (invalid key):
+SC-001 (무효한 key):
 POST /v1/chat/completions + x-api-key: bad_key → 401
 
-SC-002 (login):
+SC-002 (로그인):
 POST /auth/login {"email":"admin@demo.com","password":"password123"} → 200
 
-SC-002 (bad pw):
+SC-002 (잘못된 비밀번호):
 POST /auth/login {"password":"wrong"} → 401
 
 SC-003 (refresh):
-POST /auth/refresh {refreshToken} → 200 (new tokens)
-POST /auth/refresh {same refreshToken} → 401 (rotation enforced)
+POST /auth/refresh {refreshToken} → 200 (새 토큰)
+POST /auth/refresh {동일 refreshToken} → 401 (rotation 적용)
 
 SC-005 (RBAC):
 POST /teams as member → 403 "Insufficient permissions"
@@ -125,11 +125,11 @@ POST /v1/chat/completions + scoped key ["gpt-4o"] + model "claude-sonnet-4-20250
 
 ---
 
-## Decision
+## 결정
 
-- [x] **READY FOR MERGE** — 10/10 SCs runtime verified, 1 minor inline fix, demo --ci passes, no blocking issues
+- [x] **READY FOR MERGE** — 10/10 SCs 런타임 검증 완료, 1건의 minor 인라인 수정, 데모 --ci 통과, 차단 이슈 없음
 
 ---
 
-*Generated: 2026-03-26*
-*Verified by: Claude Code (automated) + user (approved)*
+*생성일: 2026-03-26*
+*검증자: Claude Code (자동화) + 사용자 (승인)*

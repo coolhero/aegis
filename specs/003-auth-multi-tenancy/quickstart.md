@@ -1,11 +1,11 @@
 # Quickstart: F003 — Auth & Multi-tenancy
 
-## Prerequisites
+## 사전 요구사항
 
 - F001 Foundation Setup 완료 (Docker Compose, PostgreSQL, Redis 실행 중)
 - F002 LLM Gateway Core 완료
 
-## Setup
+## 설정
 
 ```bash
 # 1. 새 패키지 설치
@@ -25,7 +25,7 @@ npm run start:dev
 # admin@demo.com / password123 로 로그인 가능
 ```
 
-## Quick Test
+## 빠른 테스트
 
 ```bash
 # JWT 로그인
@@ -34,24 +34,24 @@ curl -X POST http://localhost:3000/auth/login \
   -d '{"email":"admin@demo.com","password":"password123"}'
 
 # Access Token으로 보호 API 접근
-TOKEN="<accessToken from login response>"
+TOKEN="<로그인 응답의 accessToken>"
 curl http://localhost:3000/organizations \
   -H "Authorization: Bearer $TOKEN"
 
 # API Key로 LLM 요청
-API_KEY="<key from seed output>"
+API_KEY="<seed 출력의 key>"
 curl -X POST http://localhost:3000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "x-api-key: $API_KEY" \
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
-## Key Files
+## 주요 파일
 
-| File | Purpose |
+| 파일 | 용도 |
 |------|---------|
-| `libs/common/src/auth/` | Auth entities, guards, decorators |
-| `apps/api/src/auth/` | Auth module, service, controller |
-| `apps/api/src/auth/auth.module.ts` | NestJS auth module |
-| `apps/api/src/auth/auth.service.ts` | JWT + API Key auth logic |
-| `apps/api/src/auth/auth.controller.ts` | Login, refresh endpoints |
+| `libs/common/src/auth/` | Auth 엔티티, guards, 데코레이터 |
+| `apps/api/src/auth/` | Auth 모듈, 서비스, 컨트롤러 |
+| `apps/api/src/auth/auth.module.ts` | NestJS auth 모듈 |
+| `apps/api/src/auth/auth.service.ts` | JWT + API Key 인증 로직 |
+| `apps/api/src/auth/auth.controller.ts` | 로그인, refresh 엔드포인트 |

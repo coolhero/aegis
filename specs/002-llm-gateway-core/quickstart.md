@@ -5,60 +5,60 @@
 
 ## Prerequisites
 
-| Tool | Version | Check Command |
+| 도구 | 버전 | 확인 명령 |
 |------|---------|---------------|
 | Node.js | 20+ | `node --version` |
 | npm | 10+ | `npm --version` |
 | Docker | 24+ | `docker --version` |
 | Docker Compose | v2+ | `docker compose version` |
-| F001 Foundation | Completed | `curl localhost:3000/health` returns 200 |
+| F001 Foundation | 완료 | `curl localhost:3000/health`가 200을 반환 |
 
-### Required API Keys
+### 필수 API 키
 
-At least one provider API key is needed to test the gateway:
+게이트웨이를 테스트하려면 하나 이상의 프로바이더 API 키가 필요하다:
 
-| Variable | Provider | Get it from |
+| 변수 | 프로바이더 | 발급처 |
 |----------|----------|-------------|
 | `OPENAI_API_KEY` | OpenAI | https://platform.openai.com/api-keys |
 | `ANTHROPIC_API_KEY` | Anthropic | https://console.anthropic.com/settings/keys |
 
 ## Setup
 
-### 1. Ensure F001 Infrastructure is Running
+### 1. F001 인프라가 실행 중인지 확인
 
 ```bash
 docker compose up -d
 npm run start:dev
 ```
 
-Verify health:
+헬스 확인:
 
 ```bash
 curl http://localhost:3000/health
 ```
 
-### 2. Add API Keys to Environment
+### 2. 환경에 API 키 추가
 
-Add to your `.env` file:
+`.env` 파일에 추가:
 
 ```bash
-# At least one is required
+# 하나 이상 필수
 OPENAI_API_KEY=sk-your-openai-key-here
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
 ```
 
-Restart the application after updating `.env`:
+`.env` 업데이트 후 애플리케이션을 재시작:
 
 ```bash
-# Ctrl+C to stop, then:
+# Ctrl+C로 중지 후:
 npm run start:dev
 ```
 
-### 3. Seed Provider and Model Data
+### 3. Provider 및 Model 데이터 시딩
 
-The migration seeds default provider and model records automatically. Verify by checking the application logs for seed confirmation at startup.
+마이그레이션이 기본 프로바이더 및 모델 레코드를 자동으로 시딩한다. 시작 시 애플리케이션 로그에서 시드 확인을 체크하여 검증한다.
 
-## Test: Non-Streaming Request
+## Test: 비스트리밍 요청
 
 ### OpenAI Model (gpt-4o)
 
@@ -75,7 +75,7 @@ curl -s http://localhost:3000/v1/chat/completions \
   }' | jq .
 ```
 
-Expected response:
+예상 응답:
 
 ```json
 {
@@ -116,7 +116,7 @@ curl -s http://localhost:3000/v1/chat/completions \
   }' | jq .
 ```
 
-Expected response (same OpenAI-compatible format):
+예상 응답 (동일한 OpenAI 호환 형식):
 
 ```json
 {
@@ -142,9 +142,9 @@ Expected response (same OpenAI-compatible format):
 }
 ```
 
-## Test: Streaming Request (SSE)
+## Test: 스트리밍 요청 (SSE)
 
-### OpenAI Streaming
+### OpenAI 스트리밍
 
 ```bash
 curl -N http://localhost:3000/v1/chat/completions \
@@ -159,7 +159,7 @@ curl -N http://localhost:3000/v1/chat/completions \
   }'
 ```
 
-Expected output (SSE events, one per line):
+예상 출력 (SSE 이벤트, 라인별):
 
 ```
 data: {"id":"chatcmpl-...","object":"chat.completion.chunk","created":1711360000,"model":"gpt-4o","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
@@ -176,7 +176,7 @@ data: [DONE]
 
 ```
 
-### Anthropic Streaming
+### Anthropic 스트리밍
 
 ```bash
 curl -N http://localhost:3000/v1/chat/completions \
@@ -191,11 +191,11 @@ curl -N http://localhost:3000/v1/chat/completions \
   }'
 ```
 
-Expected output: Same SSE format as OpenAI (the gateway converts Anthropic streaming events to OpenAI chunk format).
+예상 출력: OpenAI와 동일한 SSE 형식 (게이트웨이가 Anthropic 스트리밍 이벤트를 OpenAI 청크 형식으로 변환).
 
-## Test: Error Handling
+## Test: 에러 처리
 
-### Unknown Model
+### 알 수 없는 모델
 
 ```bash
 curl -s http://localhost:3000/v1/chat/completions \
@@ -206,7 +206,7 @@ curl -s http://localhost:3000/v1/chat/completions \
   }' | jq .
 ```
 
-Expected response (400):
+예상 응답 (400):
 
 ```json
 {
@@ -219,7 +219,7 @@ Expected response (400):
 }
 ```
 
-### Missing Messages
+### messages 누락
 
 ```bash
 curl -s http://localhost:3000/v1/chat/completions \
@@ -229,7 +229,7 @@ curl -s http://localhost:3000/v1/chat/completions \
   }' | jq .
 ```
 
-Expected response (400):
+예상 응답 (400):
 
 ```json
 {
@@ -242,9 +242,9 @@ Expected response (400):
 }
 ```
 
-### Invalid API Key (Provider Error)
+### 잘못된 API 키 (프로바이더 에러)
 
-If the API key is invalid or missing, the provider returns an authentication error:
+API 키가 잘못되었거나 누락된 경우, 프로바이더가 인증 에러를 반환한다:
 
 ```json
 {
@@ -257,7 +257,7 @@ If the API key is invalid or missing, the provider returns an authentication err
 }
 ```
 
-## Verify SSE Headers
+## SSE 헤더 확인
 
 ```bash
 curl -sI -X POST http://localhost:3000/v1/chat/completions \
@@ -269,7 +269,7 @@ curl -sI -X POST http://localhost:3000/v1/chat/completions \
   }' 2>&1 | head -10
 ```
 
-Expected headers include:
+예상 헤더:
 
 ```
 Content-Type: text/event-stream
@@ -277,37 +277,37 @@ Cache-Control: no-cache
 Connection: keep-alive
 ```
 
-## Common Issues
+## 일반적인 문제
 
-### "Unknown model" for a valid model name
+### 유효한 모델명에 대해 "Unknown model" 발생
 
-The model seed data may not have been applied. Check that the `models` table has entries:
+모델 시드 데이터가 적용되지 않았을 수 있다. `models` 테이블에 항목이 있는지 확인:
 
 ```bash
-# Connect to postgres
+# postgres에 연결
 docker compose exec postgres psql -U aegis -d aegis -c "SELECT name, enabled FROM models;"
 ```
 
-### Provider returns 401/403
+### 프로바이더가 401/403 반환
 
-API key is invalid or not set. Check your `.env`:
+API 키가 잘못되었거나 설정되지 않았다. `.env`를 확인:
 
 ```bash
 grep -E "OPENAI_API_KEY|ANTHROPIC_API_KEY" .env
 ```
 
-### Streaming response hangs
+### 스트리밍 응답이 멈춤
 
-Ensure you use `curl -N` (no-buffer) for streaming requests. Without `-N`, curl buffers the entire response before displaying.
+스트리밍 요청에 `curl -N` (no-buffer)을 사용해야 한다. `-N` 없이는 curl이 전체 응답을 표시 전에 버퍼링한다.
 
-### Connection refused on port 3000
+### 포트 3000에서 연결 거부
 
-The application is not running. Start it:
+애플리케이션이 실행 중이지 않다. 시작하기:
 
 ```bash
 npm run start:dev
 ```
 
-### TypeORM entity sync errors
+### TypeORM 엔티티 동기화 에러
 
-If entity changes are not reflected, restart the dev server. In development mode, `synchronize: true` auto-syncs schema on startup.
+엔티티 변경이 반영되지 않으면 개발 서버를 재시작한다. 개발 모드에서 `synchronize: true`가 시작 시 스키마를 자동 동기화한다.

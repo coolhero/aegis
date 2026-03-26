@@ -1,10 +1,10 @@
 # Constitution Seed — AEGIS
 
-## Source Code Reference Principles
+## 소스 코드 참조 원칙
 
-N/A — Greenfield project. No existing source code to reference.
+해당 없음 — 그린필드 프로젝트. 참조할 기존 소스 코드 없음.
 
-## Architecture Principles
+## 아키텍처 원칙
 
 | Principle | Rationale |
 |-----------|-----------|
@@ -18,7 +18,7 @@ N/A — Greenfield project. No existing source code to reference.
 | **EU AI Act Compliance** | 2026년 8월 고위험 조항 전면 적용 대비. 결정 계보 기록 |
 | **Start Simple (YAGNI)** | MVP 단계에서 과잉 설계 방지. 필요할 때 확장 |
 
-## Technical Constraints
+## 기술 제약 조건
 
 | Constraint | Details |
 |------------|---------|
@@ -29,20 +29,20 @@ N/A — Greenfield project. No existing source code to reference.
 | Cache/Queue | Redis + BullMQ (세션, 토큰 한도, 비동기 작업) |
 | Observability | Langfuse (MIT, 셀프호스팅, OpenTelemetry 호환) |
 | Security Standard | OWASP LLM Top 10 (2025) |
-| Compliance | EU AI Act (2026-08-02 deadline) |
+| Compliance | EU AI Act (2026-08-02 마감) |
 
-## Coding Conventions
+## 코딩 컨벤션
 
 | Convention | Details |
 |------------|---------|
-| Naming | camelCase (variables/functions), PascalCase (classes/interfaces), kebab-case (files) |
-| Project Structure | NestJS module-per-domain pattern (one module per Feature) |
-| Error Handling | NestJS Exception Filters, typed error codes, never expose internal errors |
-| Testing | Jest + Supertest (unit + integration), Playwright (E2E) |
+| Naming | camelCase (변수/함수), PascalCase (클래스/인터페이스), kebab-case (파일) |
+| Project Structure | NestJS module-per-domain 패턴 (Feature당 하나의 모듈) |
+| Error Handling | NestJS Exception Filters, 타입 지정 에러 코드, 내부 에러 노출 금지 |
+| Testing | Jest + Supertest (단위 + 통합), Playwright (E2E) |
 
-## Best Practices
+## 모범 사례
 
-### I. Test-First (NON-NEGOTIABLE)
+### I. Test-First (비타협 원칙)
 테스트 먼저 작성. 테스트 없는 코드는 미완성.
 
 ### II. Think Before Coding
@@ -60,7 +60,7 @@ N/A — Greenfield project. No existing source code to reference.
 ### VI. Demo-Ready Delivery
 각 Feature 완료 시 데모 가능해야 함. 실행 가능한 데모 스크립트(`demos/F00N-name.sh`) 제공.
 
-## Global Evolution Layer Operational Principles
+## GEL 운영 원칙
 
 1. **P1: Roadmap-Driven Ordering** — Feature 실행 순서는 roadmap.md의 Release Groups를 따름
 2. **P2: Entity/API Registry as Contracts** — 레지스트리에 정의된 엔티티와 API는 계약으로 취급
