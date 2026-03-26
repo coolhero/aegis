@@ -44,7 +44,7 @@
 | F004 | Token Budget Management   | completed   | T1   | verified    | main                    | FR-005 reconciliation 수정, FR-016 pessimistic estimation. SC-003/014 런타임 통과. 107 tests |
 | F005 | Request Logging & Tracing | completed   | T1   | verified    | main                    | SC 8/16 런타임, 5/16 unit-only (limited). 107tests. verify-report.md                     |
 | F006 | Security Guardrails       | completed   | T2   | verified    | main                    | SC 8/8 런타임(demo CI), 61 unit tests, 168 total. verify-report.md PASS |                                                                           |
-| F007 | Admin Dashboard           | in_progress | T2   | verify ✅    | 007-admin-dashboard     | SC 12/12 PASS. Playwright 런타임 검증. API unwrap+파라미터 수정. merge 대기.                    |
+| F007 | Admin Dashboard           | completed   | T2   | verified    | main                    | SC 16/16. Next.js+shadcn/ui+SSE. Playwright 런타임. P8-P11 skill feedback.                |
 | F008 | Provider Fallback & LB    | pending     | T2   | pre-context | —                       |                                                                                       |
 | F009 | Knowledge Integration     | pending     | T3   | pre-context | —                       |                                                                                       |
 | F010 | Prompt Management         | pending     | T3   | pre-context | —                       |                                                                                       |
