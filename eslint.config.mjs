@@ -20,6 +20,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['node_modules/', 'dist/', 'webpack.config.js', '.specify/'],
+    ignores: ['node_modules/', 'dist/', 'webpack.config.js', '.specify/', 'apps/web/.next/', 'apps/web/node_modules/'],
   },
 );

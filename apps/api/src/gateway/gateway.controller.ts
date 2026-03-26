@@ -68,6 +68,12 @@ export class GatewayController {
     // Budget reconciliation (FR-016)
     await this.reconcileBudget(req, response.usage);
 
+    // F008: Add fallback provider header
+    const fallbackProvider = this.gatewayService.getLastFallbackProvider();
+    if (fallbackProvider) {
+      res.setHeader('X-Fallback-Provider', fallbackProvider);
+    }
+
     res.status(200).json(response);
   }
 

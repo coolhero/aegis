@@ -78,7 +78,11 @@ export class ApiKeyService {
    * Empty scopes = all models allowed.
    */
   checkModelScope(apiKey: ApiKey, model: string): void {
-    if (apiKey.scopes.length > 0 && !apiKey.scopes.includes(model)) {
+    // Empty scopes or wildcard "*" = access to all models
+    if (apiKey.scopes.length === 0 || apiKey.scopes.includes('*')) {
+      return;
+    }
+    if (!apiKey.scopes.includes(model)) {
       throw new ForbiddenException(
         `API key does not have access to model: ${model}`,
       );

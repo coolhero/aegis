@@ -37,6 +37,7 @@ describe('GatewayController', () => {
     const mockGatewayService = {
       chat: jest.fn(),
       chatStream: jest.fn(),
+      getLastFallbackProvider: jest.fn().mockReturnValue(null),
     };
 
     const mockLoggerService = {

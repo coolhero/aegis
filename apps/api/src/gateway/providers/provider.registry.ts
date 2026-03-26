@@ -50,6 +50,45 @@ export class ProviderRegistry implements OnModuleInit {
   }
 
   /**
+   * Resolve ALL enabled providers for a model (for fallback chain).
+   */
+  async resolveAll(modelName: string): Promise<ResolvedProvider[]> {
+    const resolved: ResolvedProvider[] = [];
+
+    // Primary: exact model match
+    const primary = await this.resolve(modelName);
+    if (primary) resolved.push(primary);
+
+    // Fallback: other enabled providers (cross-provider fallback with cheapest model)
+    const allProviders = await this.providerRepo.find({ where: { enabled: true } });
+    for (const provider of allProviders) {
+      if (resolved.some((r) => r.provider.id === provider.id)) continue;
+
+      const adapter = this.adapters.get(provider.type);
+      if (!adapter) continue;
+
+      const apiKey = this.getApiKey(provider);
+      if (!apiKey) continue;
+
+      const fallbackModel = await this.modelRepo.findOne({
+        where: { providerId: provider.id, enabled: true },
+        order: { inputPricePerToken: 'ASC' },
+      });
+      if (!fallbackModel) continue;
+
+      resolved.push({
+        adapter,
+        apiKey,
+        baseUrl: provider.baseUrl || undefined,
+        model: fallbackModel,
+        provider,
+      });
+    }
+
+    return resolved;
+  }
+
+  /**
    * Resolve a model name to the correct provider adapter, API key, and model info.
    */
   async resolve(modelName: string): Promise<ResolvedProvider | null> {
