@@ -225,8 +225,9 @@ describe('BudgetGuard', () => {
   // ─── Token estimation ─────────────────────────────────
 
   describe('Token estimation', () => {
-    it('should estimate tokens based on message content length', async () => {
-      const longMessage = 'a'.repeat(400); // 400 chars → ~100 tokens
+    it('should estimate tokens with pessimistic formula (input + output + overhead)', async () => {
+      const longMessage = 'a'.repeat(400); // 400 chars
+      // input: ceil(400/3) + 4 overhead = 138, output: 256 default → 394
       const ctx = createMockContext({
         apiKey: { orgId, userId, teamId: null },
         body: {
@@ -238,11 +239,12 @@ describe('BudgetGuard', () => {
       await guard.canActivate(ctx);
 
       expect(budgetEngine.reserve).toHaveBeenCalledWith(
-        expect.objectContaining({ estimatedTokens: 100 }),
+        expect.objectContaining({ estimatedTokens: 394 }),
       );
     });
 
-    it('should use minimum 50 tokens for empty messages', async () => {
+    it('should include output estimate even for empty messages', async () => {
+      // input: 0 + 4 overhead = 4, output: 256 default → 260
       const ctx = createMockContext({
         apiKey: { orgId, userId, teamId: null },
         body: { model: 'gpt-4o', messages: [{ role: 'user', content: '' }] },
@@ -251,7 +253,7 @@ describe('BudgetGuard', () => {
       await guard.canActivate(ctx);
 
       expect(budgetEngine.reserve).toHaveBeenCalledWith(
-        expect.objectContaining({ estimatedTokens: 50 }),
+        expect.objectContaining({ estimatedTokens: 260 }),
       );
     });
 

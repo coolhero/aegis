@@ -84,7 +84,7 @@ Client → POST /v1/chat/completions
   │
   ├─ BudgetGuard (F004)
   │   ├─ 0. Redis 연결 확인 (fail-closed: 연결 실패 시 503 반환)
-  │   ├─ 1. 토큰 추정 (input 메시지 길이 기반, FR-016)
+  │   ├─ 1. Pessimistic 토큰 추정 (input + output, FR-016)
   │   ├─ 2. Redis Lua: check-and-reserve (User→Team→Org 원자적)
   │   │   ├─ 성공 → reservation_id 발급, 요청 진행
   │   │   ├─ 실패 → 429 + budget_exceeded + 차단 레벨
@@ -111,7 +111,8 @@ budget:{level}:{id}:cost      → 현재 기간 사용 비용 (INCRBYFLOAT)
 budget:{level}:{id}:period    → 현재 기간 ID (STRING)
 
 # 예약 추적
-reservation:{reservation_id}  → { tokens, cost, user_id, team_id, org_id, period_id } (HASH, TTL 5분)
+reservation:{reservation_id}  → { tokens, cost, user_key, team_key, org_key, user_period, team_period, org_period, has_user, has_team, has_org } (HASH, TTL 5분)
+# user_key/team_key/org_key: Redis 카운터 키 prefix (reconcile 시 사용)
 
 # 알림 추적
 alert:{budget_id}:{period_id}:{threshold}  → 1 (EXISTS 체크, 중복 방지)
@@ -124,6 +125,8 @@ alert:{budget_id}:{period_id}:{threshold}  → 1 (EXISTS 체크, 중복 방지)
 2. 모든 레벨 통과 시 INCRBY로 동시 예약
 3. 하나라도 초과 시 어떤 레벨에서 실패했는지 반환
 4. reservation HASH 생성 (TTL 5분 — 미정산 예약 자동 해제)
+   - **키 경로 저장**: KEYS[1]~KEYS[6]의 값을 reservation 해시에 `user_key`, `team_key`, `org_key`로 저장
+   - reconcile 시 이 키 경로로 해당 레벨 카운터를 직접 보정
 
 ### 비용 계산
 
@@ -158,13 +161,28 @@ BudgetGuard에서 Redis 연결 실패 감지 시:
 3. 에러 메시지: `{ statusCode: 503, error: "service_unavailable", message: "Budget service temporarily unavailable" }`
 4. 예산 우회(fail-open) 절대 불가 — 보안 원칙
 
-### 스트리밍 토큰 정산 시점 (FR-016)
+### Pessimistic Token Estimation (FR-016)
 
-1. **예약 시점**: `POST /v1/chat/completions` 수신 즉시, input 메시지 길이 기반 토큰 추정
-2. **정산 시점**: 프로바이더 최종 SSE 이벤트의 `usage` 필드 수신 후
-   - streaming: 마지막 `data:` chunk에서 `usage` 추출
-   - non-streaming: 응답 body의 `usage` 필드 추출
-3. **보정**: estimated_tokens와 actual_tokens 차이만큼 Redis 카운터 조정
+**예약 시점** 추정 (요청 수신 즉시):
+```
+input_estimate  = Σ(message.content.length / 3) + (message_count × 4)
+                  // /3: 보수적 비율 (한국어 ~2, 영어 ~4의 중간값)
+                  // ×4: role/delimiter overhead per message
+output_estimate = body.max_tokens ?? 256
+                  // max_tokens 지정 시 해당 값, 미지정 시 기본 256
+estimated_total = max(input_estimate + output_estimate, 50)
+```
+
+**정산 시점**: 프로바이더 최종 `usage` 필드 수신 후
+- streaming: 마지막 `data:` chunk에서 `usage` 추출
+- non-streaming: 응답 body의 `usage` 필드 추출
+
+**보정 (FR-005 reconciliation)**:
+1. reservation 해시에서 `user_key`, `team_key`, `org_key` 읽기 (reserve 시 저장됨)
+2. `token_diff = actual_tokens - estimated_tokens`
+3. 각 레벨 키에 대해 `INCRBY {level_key}:tokens token_diff` 실행
+4. 비용도 동일 패턴으로 보정
+5. reservation 해시 삭제
 
 ### Model Tier 아키텍처 (FR-018~022)
 

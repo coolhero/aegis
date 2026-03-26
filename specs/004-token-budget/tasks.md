@@ -49,11 +49,12 @@
 - Redis Lua script (`check-and-reserve.lua`) 작성
   - User→Team→Org 3레벨 원자적 검사
   - 모든 레벨 통과 시 INCRBY + reservation HASH 생성
+  - **reservation HASH에 Redis 키 경로 저장**: `user_key`(KEYS[1] prefix), `team_key`(KEYS[3] prefix), `org_key`(KEYS[5] prefix) — reconcile 시 이 경로로 카운터 보정
   - 실패 시 차단 레벨 반환
 - `BudgetEngineService` 구현
   - `reserve()`: Lua script 실행 + ReservationResult 반환
-  - `reconcile()`: 실제 usage 기반 Redis 보정 + UsageRecord INSERT
-  - `release()`: 예약 해제 + Redis DECRBY + UsageRecord 상태 변경
+  - `reconcile()`: reservation 해시의 `user_key`/`team_key`/`org_key`로 Redis 카운터 보정 (실제값 - 추정값) + UsageRecord INSERT. ~~extractUserKey()~~ → reservation 해시 직접 참조
+  - `release()`: 동일하게 reservation 해시의 키 경로로 DECRBY + UsageRecord 상태 변경
 - Redis 키 초기화 헬퍼 (Budget 생성/수정 시 Redis 동기화)
 - 예산 미설정 엔티티 unlimited 처리
 
@@ -70,17 +71,17 @@
 - `BudgetGuard` 구현 (CanActivate)
   - Redis 연결 상태 확인 (`redis.status === 'ready'`) (FR-015)
   - Redis 비가용 시 503 Service Unavailable 즉시 반환 (fail-closed, SC-013)
-  - 토큰 추정 (input 메시지 길이 기반) (FR-016)
+  - **Pessimistic 토큰 추정** (FR-016): `input_est = Σ(content.length/3) + (msg_count × 4)`, `output_est = max_tokens ?? 256`, `total = max(input + output, 50)`
   - `BudgetEngineService.reserve()` 호출
   - 성공: reservation_id를 request context에 저장
   - 실패: 429 HttpException + budget_exceeded 상세
 - `GatewayController`에 BudgetGuard 적용
 - 정산/해제 인터셉터 구현
-  - 성공 응답 후: `reconcile()` — 프로바이더 최종 SSE `usage` 필드 기준 정산 (FR-016, SC-014)
+  - 성공 응답 후: `reconcile()` — 프로바이더 최종 `usage` 필드 기준 정산 (FR-005, SC-014)
   - streaming: 마지막 `data:` chunk에서 `usage` 추출
   - non-streaming: 응답 body `usage` 필드 추출
-  - estimated_tokens와 actual_tokens 차이만큼 Redis 카운터 보정
-  - 에러 발생 시: `release()`
+  - **reservation 해시의 `user_key`/`team_key`/`org_key`로 Redis 카운터 보정** (extractUserKey null 버그 수정)
+  - 에러 발생 시: `release()` (동일하게 키 경로 기반)
 - 멱등성 키 지원 (idempotency_key 헤더)
 
 **Acceptance**: LLM 요청 → 예산 차감 → 정산 전체 흐름 동작, Redis 다운 시 503 반환

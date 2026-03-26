@@ -107,6 +107,7 @@ end
 
 redis.call('HSET', KEYS[7],
   'tokens', est_tokens, 'cost', est_cost,
+  'user_key', KEYS[1], 'team_key', KEYS[3], 'org_key', KEYS[5],
   'user_period', user_period_id, 'team_period', team_period_id, 'org_period', org_period_id,
   'has_user', has_user, 'has_team', has_team, 'has_org', has_org
 )
@@ -322,27 +323,77 @@ export class BudgetEngineService {
     const tokenDiff = actualTokens - estimatedTokens;
     const costDiff = input.costUsd - estimatedCost;
 
-    // Adjust Redis counters with the difference
-    if (reservation.has_user === '1') {
-      const userKey = this.extractUserKey(input.reservationId);
-      if (userKey && tokenDiff !== 0) {
-        await this.redis.incrby(`budget:user:${userKey}:tokens`, tokenDiff);
-        await this.redis.incrbyfloat(`budget:user:${userKey}:cost`, costDiff);
+    // Adjust Redis counters with the difference using key paths stored in reservation hash
+    if (reservation.has_user === '1' && reservation.user_key) {
+      const tokenKey = reservation.user_key; // e.g. "budget:user:{id}:*:tokens"
+      const costKey = tokenKey.replace(':tokens', ':cost');
+      if (tokenDiff !== 0) {
+        await this.redis.incrby(tokenKey, tokenDiff);
+      }
+      if (costDiff !== 0) {
+        await this.redis.incrbyfloat(costKey, costDiff);
       }
     }
-    if (reservation.has_team === '1') {
-      const teamKey = this.extractTeamKey(input.reservationId);
-      if (teamKey && tokenDiff !== 0) {
-        await this.redis.incrby(`budget:team:${teamKey}:tokens`, tokenDiff);
-        await this.redis.incrbyfloat(`budget:team:${teamKey}:cost`, costDiff);
+    if (reservation.has_team === '1' && reservation.team_key) {
+      const tokenKey = reservation.team_key;
+      const costKey = tokenKey.replace(':tokens', ':cost');
+      if (tokenDiff !== 0) {
+        await this.redis.incrby(tokenKey, tokenDiff);
+      }
+      if (costDiff !== 0) {
+        await this.redis.incrbyfloat(costKey, costDiff);
       }
     }
-    if (reservation.has_org === '1') {
-      const orgKey = this.extractOrgKey(input.reservationId);
-      if (orgKey && tokenDiff !== 0) {
-        await this.redis.incrby(`budget:org:${orgKey}:tokens`, tokenDiff);
-        await this.redis.incrbyfloat(`budget:org:${orgKey}:cost`, costDiff);
+    if (reservation.has_org === '1' && reservation.org_key) {
+      const tokenKey = reservation.org_key;
+      const costKey = tokenKey.replace(':tokens', ':cost');
+      if (tokenDiff !== 0) {
+        await this.redis.incrby(tokenKey, tokenDiff);
       }
+      if (costDiff !== 0) {
+        await this.redis.incrbyfloat(costKey, costDiff);
+      }
+    }
+
+    // Also reconcile tier-specific reservation if it exists
+    const tierReservation = await this.getReservation(`tier:${input.reservationId}`);
+    if (tierReservation) {
+      const tierEstTokens = Number(tierReservation.tokens);
+      const tierEstCost = Number(tierReservation.cost);
+      const tierTokenDiff = actualTokens - tierEstTokens;
+      const tierCostDiff = input.costUsd - tierEstCost;
+
+      if (tierReservation.has_user === '1' && tierReservation.user_key) {
+        const tokenKey = tierReservation.user_key;
+        const costKey = tokenKey.replace(':tokens', ':cost');
+        if (tierTokenDiff !== 0) {
+          await this.redis.incrby(tokenKey, tierTokenDiff);
+        }
+        if (tierCostDiff !== 0) {
+          await this.redis.incrbyfloat(costKey, tierCostDiff);
+        }
+      }
+      if (tierReservation.has_team === '1' && tierReservation.team_key) {
+        const tokenKey = tierReservation.team_key;
+        const costKey = tokenKey.replace(':tokens', ':cost');
+        if (tierTokenDiff !== 0) {
+          await this.redis.incrby(tokenKey, tierTokenDiff);
+        }
+        if (tierCostDiff !== 0) {
+          await this.redis.incrbyfloat(costKey, tierCostDiff);
+        }
+      }
+      if (tierReservation.has_org === '1' && tierReservation.org_key) {
+        const tokenKey = tierReservation.org_key;
+        const costKey = tokenKey.replace(':tokens', ':cost');
+        if (tierTokenDiff !== 0) {
+          await this.redis.incrby(tokenKey, tierTokenDiff);
+        }
+        if (tierCostDiff !== 0) {
+          await this.redis.incrbyfloat(costKey, tierCostDiff);
+        }
+      }
+      await this.redis.del(`reservation:tier:${input.reservationId}`);
     }
 
     // Update UsageRecord in DB
@@ -375,27 +426,24 @@ export class BudgetEngineService {
     const tokens = Number(reservation.tokens);
     const cost = Number(reservation.cost);
 
-    // Reverse the reservation from Redis counters
-    if (reservation.has_user === '1') {
-      const userKey = this.extractUserKey(reservationId);
-      if (userKey) {
-        await this.redis.decrby(`budget:user:${userKey}:tokens`, tokens);
-        await this.redis.incrbyfloat(`budget:user:${userKey}:cost`, -cost);
-      }
+    // Reverse the reservation from Redis counters using key paths from reservation hash
+    if (reservation.has_user === '1' && reservation.user_key) {
+      const tokenKey = reservation.user_key;
+      const costKey = tokenKey.replace(':tokens', ':cost');
+      await this.redis.decrby(tokenKey, tokens);
+      await this.redis.incrbyfloat(costKey, -cost);
     }
-    if (reservation.has_team === '1') {
-      const teamKey = this.extractTeamKey(reservationId);
-      if (teamKey) {
-        await this.redis.decrby(`budget:team:${teamKey}:tokens`, tokens);
-        await this.redis.incrbyfloat(`budget:team:${teamKey}:cost`, -cost);
-      }
+    if (reservation.has_team === '1' && reservation.team_key) {
+      const tokenKey = reservation.team_key;
+      const costKey = tokenKey.replace(':tokens', ':cost');
+      await this.redis.decrby(tokenKey, tokens);
+      await this.redis.incrbyfloat(costKey, -cost);
     }
-    if (reservation.has_org === '1') {
-      const orgKey = this.extractOrgKey(reservationId);
-      if (orgKey) {
-        await this.redis.decrby(`budget:org:${orgKey}:tokens`, tokens);
-        await this.redis.incrbyfloat(`budget:org:${orgKey}:cost`, -cost);
-      }
+    if (reservation.has_org === '1' && reservation.org_key) {
+      const tokenKey = reservation.org_key;
+      const costKey = tokenKey.replace(':tokens', ':cost');
+      await this.redis.decrby(tokenKey, tokens);
+      await this.redis.incrbyfloat(costKey, -cost);
     }
 
     // Update UsageRecord in DB
@@ -442,20 +490,9 @@ export class BudgetEngineService {
     return Object.keys(data).length > 0 ? data : null;
   }
 
-  private extractUserKey(reservationId: string): string | null {
-    // Reservation keys are stored in the reservation hash — we need to look them up
-    // For simplicity, we parse from the Redis keys pattern
-    // In production, these would be stored in the reservation hash
-    return null; // Will be resolved via reservation hash data
-  }
-
-  private extractTeamKey(reservationId: string): string | null {
-    return null;
-  }
-
-  private extractOrgKey(reservationId: string): string | null {
-    return null;
-  }
+  // extractUserKey/TeamKey/OrgKey removed — reservation hash now stores
+  // the actual Redis key paths (user_key, team_key, org_key) directly,
+  // set by the Lua script during reserve(). See reconcile() and release().
 
   private async updatePeriodTotals(
     reservation: Record<string, string>,

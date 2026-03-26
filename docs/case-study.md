@@ -16,6 +16,11 @@
 3. [Phase 2: Project Initialization (smart-sdd init)](#phase-2-project-initialization)
 4. [Phase 3: Feature Definition (smart-sdd add)](#phase-3-feature-definition)
 5. [Phase 4: Pipeline Execution (smart-sdd pipeline)](#phase-4-pipeline-execution)
+   - 4.1~4.5: F001~F005 개별 Feature
+   - 4.6: F005 Request Logging & Tracing
+   - 4.7: T1 Integration — Demo Groups (DG1, DG2)
+   - 4.8: F004 Regression — Token Estimation + Reconciliation 수정
+   - 4.9~4.11: 도메인 모듈 분석, HARD STOP 사례, Skill Feedback
 6. [Appendix: Skill Feedback Log](#appendix-skill-feedback-log)
 
 ---
@@ -395,7 +400,7 @@ Phase 5: → Case Study finalization (EN + KO)
 
 ## Phase 4: Pipeline Execution
 
-> `/smart-sdd pipeline` 실행 결과. F001~F004 (T0+T1 Features)
+> `/smart-sdd pipeline` 실행 결과. F001~F005 (T0+T1 Features) + Integration Demo + F004 Regression
 
 ### 4.1 Feature별 Pipeline 결과 요약
 
@@ -405,6 +410,10 @@ Phase 5: → Case Study finalization (EN + KO)
 | F002 | LLM Gateway Core | 4/4 | ✅ PASS | 실제 OpenAI+Anthropic 호출 성공. claude-3-5-haiku 모델명 outdated | 1 |
 | F003 | Auth & Multi-tenancy | 10/10 | ✅ PASS | 버그 1건 발견+수정 (jti 미포함 → refresh token 충돌) | 2 |
 | F004 | Token Budget Management | 13/20 | ⚠️ LIMITED | 예산 CRUD, LLM 차감, 429 차단, Redis fail-closed, ModelTier 검증. 동시성·알림·스트리밍은 limited | 3 |
+| F005 | Request Logging & Tracing | 8/16 | ⚠️ LIMITED | 비동기 BullMQ 로깅, 분석 API. 8/16 런타임, 5/16 unit-only | 1 |
+| DG1 | Login→LLM→Budget Block | 8/8 | ✅ PASS | F002+F003+F004 통합. P15~P18 발견 | 1 |
+| DG2 | Auth→Logging & Tracing | 8/8 | ✅ PASS | F003+F005 통합. Trace ID 전파 확인 | 1 |
+| F004R | Regression (estimation+reconciliation) | SC-003,014 | ✅ PASS | FR-016 pessimistic estimation, FR-005 reconciliation null 수정 | 1 |
 
 ### 4.2 F001 Foundation Setup
 
@@ -459,7 +468,111 @@ Phase 5: → Case Study finalization (EN + KO)
 5. `resolveTierForModel`이 UUID로 조회하는데 모델명 전달 → models JOIN 쿼리로 수정
 6. Budget에 `model_tier_id` 추가 시 unique constraint 업데이트 필요
 
-### 4.6 커스텀 도메인 모듈 활용 분석
+### 4.6 F005 Request Logging & Tracing
+
+**Pipeline 흐름**: specify → plan → tasks → implement → verify → merge
+**성과**: 비동기 BullMQ 기반 요청 로깅 + 분석 API(usage/cost groupBy) 구현. 107개 테스트.
+
+**런타임 검증 결과 (8/16 SC)**:
+- SC-001~004 (로그 생성, 조회, 상세, 필터링): ✅ 런타임 통과
+- SC-005~008 (분석 API — model/team/user groupBy, daily/monthly): ✅ 런타임 통과
+- SC-009~016 (비동기 처리 성능, retention, error logging, streaming token tracking 등): unit-only (인프라 제약)
+
+**교훈**: 비동기 로깅은 LLM 요청 레이턴시에 영향 없이 동작. BullMQ Job으로 분리한 설계가 효과적.
+
+---
+
+### 4.7 T1 Integration — Demo Groups (DG1, DG2)
+
+F001~F005 (T0+T1) 완료 후, Feature 간 통합 동작을 검증하는 Demo Group을 정의.
+
+#### DG1: Login → LLM → Budget Block (F002+F003+F004)
+
+**시나리오**: JWT 로그인 → 예산 설정 → API Key 생성 → LLM 호출 성공 → 예산 축소 → 429 차단
+
+**CI 결과**: 8 pass, 0 fail
+
+**통합 포인트**:
+- F003 API Key 인증 → F002 LLM Gateway 요청 전달
+- F004 BudgetGuard가 F002 요청 전 예산 검증
+- F004 pessimistic estimation → F002 LLM 완료 → F004 reconciliation
+
+#### DG2: Auth → Logging & Tracing (F003+F005)
+
+**시나리오**: API Key 인증 → LLM 호출 + trace ID 전파 → 로그 자동 생성 확인 → 분석 API 조회
+
+**CI 결과**: 8 pass, 0 fail, 1 skip (trace ID가 response body가 아닌 내부 로그에 기록)
+
+**통합 포인트**:
+- F003 API Key → 요청의 userId/orgId 컨텍스트 설정
+- F005 RequestLoggerInterceptor가 F003 인증 컨텍스트를 로그에 포함
+- x-request-id 헤더로 trace ID 전파
+
+#### Demo Script 개발 중 발견된 이슈 (P15~P18)
+
+Integration Demo 스크립트 작성 과정에서 **4건의 이슈**(P15~P18) 발견. 이들은 에이전트 동작 오류와 설계 갭이 혼합된 유형:
+
+| ID | 유형 | 요약 |
+|---|---|---|
+| P15 | 환경 갭 | demo script가 `.env` API Key를 인식 못 함 (셸 환경 ≠ dotenv) |
+| P16 | 설계 갭 (3중) | (a) Lua `>` off-by-one, (b) tier/global budget 독립 미인지, (c) Redis scan 불안정 |
+| P17 | 에이전트 오류 | --ci만 검증, interactive 미검증 상태로 완료 선언 |
+| P18 | UX 결함 | Interactive demo에 사용자 가이드 부재 (curl만 나열, 기대결과/검증방법 없음) |
+
+**P17 교훈**: 사용자가 "A + B 둘 다"라고 명시하면, 디버깅이 길어져도 완료 전 원래 요구사항을 반드시 재점검. 이 패턴은 feedback memory에 영구 저장됨.
+
+---
+
+### 4.8 F004 Regression — Token Estimation + Reconciliation 수정
+
+F004 완료 후, Integration Demo에서 두 가지 근본 문제 발견:
+
+#### 문제 1: Token Estimation이 Input Content만 계산
+
+**Before** (`budget.guard.ts:estimateTokens`):
+```typescript
+return Math.max(Math.ceil(totalChars / 4), 50); // content만, output 누락
+```
+
+**After** (pessimistic estimation):
+```typescript
+inputTokens = Σ(content.length / 3) + (msg_count × 4)  // /3: 한국어 대응, +4: overhead
+outputEstimate = max_tokens ?? 256
+return Math.max(inputTokens + outputEstimate, 50)
+```
+
+**변경 이유**: "Hi"(2 chars) 메시지의 실제 비용은 input 9 + output 1~200 tokens. 기존 estimate = 50, 실제 = 10~200. Output을 전혀 고려하지 않으면 예산 가드가 사실상 무력화.
+
+#### 문제 2: Reconciliation이 작동하지 않음 (extractUserKey null)
+
+**Before**: `extractUserKey()`, `extractTeamKey()`, `extractOrgKey()` 모두 `return null` → reconcile의 diff 보정이 실행되지 않음 → Redis 카운터가 영원히 estimated 값에 머묾
+
+**After**: Lua script의 reservation HASH에 `user_key`, `team_key`, `org_key` 키 경로를 저장. reconcile에서 이 경로를 직접 읽어 INCRBY diff 실행.
+
+```lua
+-- Lua HSET 변경
+redis.call('HSET', KEYS[7],
+  'tokens', est_tokens, 'cost', est_cost,
+  'user_key', KEYS[1], 'team_key', KEYS[3], 'org_key', KEYS[5],  -- 추가
+  'user_period', ..., 'has_user', ...)
+```
+
+#### SDD Pipeline 재실행
+
+`/smart-sdd pipeline F004 --start specify`로 spec → plan → tasks → implement → verify 전체 재실행:
+- spec.md: FR-005, FR-016, SC-003, SC-014, Assumptions 수정
+- plan.md: Pessimistic estimation 공식, reservation 키 경로, reconciliation 5단계 흐름 추가
+- tasks.md: T003(Lua), T004(Guard+Reconcile) 수정
+- 구현: 4개 파일 변경, extractUserKey 3개 메서드 제거
+- verify: SC-003 ✅ (reconciliation 후 정확 반영), SC-014 ✅ (global+tier+org 모두 실제값 10으로 보정, reservation 0)
+
+**테스트**: 107/107 통과 (기대값 2건 조정: 100→394, 50→260)
+
+**핵심 교훈**: estimation이 부정확해도 reconciliation이 살아있으면 누적 사용량은 결국 정확해진다. 하지만 reconciliation이 죽어있으면 (null 버그) estimation의 부정확함이 영원히 보정되지 않는다. **보정 메커니즘이 먼저, 추정 정밀도는 그 다음**.
+
+---
+
+### 4.9 커스텀 도메인 모듈 활용 분석
 
 Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻게 활용되었는지:
 
@@ -486,7 +599,7 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 |-----------|-----------|------------|
 | — | (F006에서 활용 예정) | F004까지는 직접 활용 없음. F006 Security Guardrails에서 본격 활용 |
 
-### 4.7 HARD STOP이 가치를 발휘한 사례
+### 4.10 HARD STOP이 가치를 발휘한 사례
 
 | # | 단계 | 사례 | HARD STOP 없었다면 |
 |---|------|------|-------------------|
@@ -497,9 +610,9 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 
 **핵심 교훈**: HARD STOP은 단순한 "승인 절차"가 아니라, 사용자가 **도메인 지식을 주입할 수 있는 유일한 시점**이다. F004에서 "모델별 예산" 결정은 코드 분석으로는 도출할 수 없고, 사업 요구사항에서 나온다.
 
-### 4.8 Skill Feedback 요약 (P1~P13)
+### 4.11 Skill Feedback 요약 (P1~P18)
 
-13건의 skill feedback이 발생. 에스컬레이션 패턴별 분류:
+18건의 skill feedback이 발생. 에스컬레이션 패턴별 분류:
 
 | 패턴 | 건수 | 대표 사례 |
 |------|------|-----------|
@@ -507,24 +620,28 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 | **verify 약화** | P2, P5, P6, P7 | verify 스킵, 런타임 미수행, 부분 검증, 자동 합격 처리 |
 | **규칙 위반** | P3, P9 | Feature 병렬 실행 금지 위반, HARD STOP 스킵 |
 | **브랜치 관리** | P4, P12 | Feature Branch 미생성, `--start` 재실행 시 Pre-Flight 미수행 |
-| **산출물 누락** | P8 | verify-report.md 미생성 |
+| **산출물 누락** | P8, P14 | verify-report.md 미생성, 데모 스크립트 미생성 |
 | **설계 이슈** | P10, P11, P13 | 기존 산출물 처리 지침 부재, US-SC 불일치 미감지, 환경 확인 미수행 |
-| **데모 누락** | P14 | implement/verify 완료 후 데모 스크립트 미생성 (MANDATORY RULE 2 위반) |
+| **환경/인프라 갭** | P15, P16 | .env 미인식 (셸 ≠ dotenv), Budget Guard 3중 함정 (off-by-one, tier 독립, Redis scan 불안정) |
+| **에이전트 검증 누락** | P17, P18 | interactive 모드 미검증 완료 선언, demo UX 가이드 부재 |
 
-**개선 추이**: P1~P3 (초기, 치명적) → P5~P7 (중기, verify 품질) → P10~P13 (후기, 세부 이슈). 시간이 지남에 따라 심각도가 낮아지는 추세.
+**개선 추이**: P1~P3 (초기, 치명적) → P5~P7 (중기, verify 품질) → P10~P14 (후기, 세부 이슈) → P15~P18 (통합 단계, 환경+UX). Phase가 진행될수록 기술적 이슈에서 UX/프로세스 이슈로 이동.
 
 **가장 중요한 교훈**:
 1. **verify는 "빌드+테스트 통과"가 아니라 "실제 서버에서 SC 검증"** (P2, P5, P6)
 2. **HARD STOP은 절대 건너뛰지 않는다** (P9)
 3. **Feature는 반드시 순차 실행** (P3)
 4. **환경 상태를 먼저 확인하고, 없을 때만 사용자에게 요청** (P7, P13)
+5. **사용자가 "A + B 둘 다"라고 하면 반드시 각각 독립 검증** (P17)
+6. **Demo는 CI 자동화와 Interactive 가이드가 다른 목적 — 둘 다 설계** (P18)
 
 ---
 
 ## Appendix: Skill Feedback Log
 
-> 전체 13건의 skill feedback은 `docs/skill-feedback.md`에 기록됨.
-> 주요 이슈: P1(산출물 불완전), P3(병렬 실행 위반), P5(런타임 검증 미수행), P9(HARD STOP 스킵), P12(Pre-Flight 미수행)
+> 전체 18건의 skill feedback은 `docs/skill-feedback.md`에 기록됨.
+> Pipeline 단계별: P1~P14 (F001~F005 pipeline), P15~P18 (Integration Demo)
+> 주요 이슈: P1(산출물 불완전), P3(병렬 실행 위반), P5(런타임 검증 미수행), P9(HARD STOP 스킵), P16(Budget Guard 3중 함정), P17(검증 누락 완료 선언)
 
 ---
 

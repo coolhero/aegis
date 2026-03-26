@@ -137,7 +137,7 @@
 - **FR-002**: 각 예산은 토큰 수(input+output 합산)와 비용(USD) 두 지표를 동시 추적해야 한다. 둘 중 하나 한도 도달 시 차단
 - **FR-003**: LLM 요청 전 BudgetGuard가 계층 전체(User→Team→Org 순)를 원자적으로 검증해야 한다. 최하위 레벨부터 검사하여 가장 제한적인 레벨에서 먼저 차단
 - **FR-004**: 예산 검증과 예약(reservation)은 원자적으로 처리해야 한다. 동시 요청 간 경합 조건 방지 (Redis Lua script)
-- **FR-005**: 요청 완료 후 프로바이더 반환 실제 토큰 사용량으로 정산(reconciliation)해야 한다. 추정치와 차이 보정
+- **FR-005**: 요청 완료 후 프로바이더 반환 실제 토큰 사용량으로 정산(reconciliation)해야 한다. reservation 해시에 저장된 Redis 키 경로(user/team/org key prefix)를 사용하여 해당 레벨의 Redis 카운터를 (실제값 - 추정값) 차이만큼 보정해야 한다
 - **FR-006**: 요청 실패 시 예약된 토큰 전액 해제해야 한다. 실패 요청에 과금 금지
 - **FR-007**: 예산 사용률 임계값(기본: 80%, 90%, 100%) 도달 시 웹훅 알림을 발생해야 한다
 - **FR-008**: 동일 기간 내 동일 임계값 중복 알림을 방지해야 한다 (AlertRecord로 추적)
@@ -148,7 +148,7 @@
 - **FR-013**: 예산 미설정 엔티티는 무제한(unlimited) 취급한다. 상위 레벨 예산이 있으면 그 범위 내 운영
 - **FR-014**: 재시도 시 멱등성 키(idempotency key)로 동일 논리 요청의 이중 과금을 방지해야 한다
 - **FR-015**: Redis 비가용 시 예산 체크는 fail-closed 정책으로 요청을 거부해야 한다 (503 반환). 예산 우회 허용 불가
-- **FR-016**: 스트리밍 응답에서 토큰 예약은 input 메시지 기반 추정으로 요청 전 수행하고, 정산은 프로바이더 최종 SSE 이벤트의 `usage` 필드로 수행해야 한다
+- **FR-016**: 토큰 예약(reservation)은 요청 전 pessimistic estimation으로 수행해야 한다. 추정 항목: (1) input tokens — 메시지 content 길이를 보수적 비율(~3 chars/token, 한국어 대응)로 계산 + 메시지당 overhead ~4 tokens(role/delimiter), (2) output tokens — `max_tokens` 파라미터 사용, 미지정 시 모델별 기본값(기본 256). 정산은 프로바이더 최종 `usage` 필드(input_tokens + output_tokens 실제값)로 수행해야 한다
 - **FR-017**: 웹훅 알림 전달 실패 시 최대 3회 재시도(exponential backoff)하고, 최종 실패 시 AlertRecord에 실패 상태를 기록해야 한다
 - **FR-018**: 시스템은 조직별 모델 티어(ModelTier)를 정의할 수 있어야 한다. 티어는 이름(premium/standard/economy 등)과 소속 모델 목록으로 구성
 - **FR-019**: 각 Budget에 선택적 `model_tier_id`를 지정할 수 있어야 한다. 미지정(NULL) 시 전체 모델 대상(global), 지정 시 해당 티어 모델에만 적용
@@ -171,7 +171,7 @@
 
 - **SC-001**: `PUT /budgets/org/:orgId`로 Org 예산 설정 → 200 응답 + Budget 엔티티 생성 + BudgetPeriod 자동 생성 확인
 - **SC-002**: `PUT /budgets/team/:teamId`, `PUT /budgets/user/:userId`로 하위 계층 예산 설정 → 200 응답 + Budget 생성 확인
-- **SC-003**: 충분한 예산 + `POST /v1/chat/completions` → 200 응답 + UsageRecord 생성 + 잔여 예산 정확 차감 확인
+- **SC-003**: 충분한 예산 + `POST /v1/chat/completions` → 200 응답 + UsageRecord 생성 + reservation(추정값) 후 reconciliation(실제값) 완료 시 잔여 예산 정확 반영 확인
 - **SC-004**: 부족한 예산 + `POST /v1/chat/completions` → 429 응답 + `budget_exceeded` 에러 + 차단 레벨(user/team/org) 명시
 - **SC-005**: User 충분 but Team 소진 → 429 + `level: "team"` 확인 (계층 검증 순서 User→Team→Org)
 - **SC-006**: 동시 100개 요청이 예산 경계 도달 시 총 차감량 ≤ 예산 + 1 요청 마진 (원자성 검증)
@@ -182,7 +182,7 @@
 - **SC-011**: `GET /budgets/org/:orgId` → Org/Team/User 계층 사용량·잔여량·사용률 반환 확인
 - **SC-012**: MEMBER 사용자가 `PUT /budgets/org/:orgId` 시도 → 403 반환 확인
 - **SC-013**: Redis 연결 실패 상태에서 `POST /v1/chat/completions` → 503 Service Unavailable 반환 확인 (fail-closed)
-- **SC-014**: 스트리밍 응답 완료 후 프로바이더 `usage` 필드 기준 정산 → 추정치와 실제값 차이만큼 잔여 예산 보정 확인
+- **SC-014**: LLM 응답 완료 후 프로바이더 `usage` 필드 기준 정산 → (1) 추정값에 output tokens + message overhead가 포함되어 있는지 확인, (2) reconciliation이 Redis 카운터(user/team/org 각 레벨)를 (실제값 - 추정값) 차이만큼 실제 보정하는지 확인, (3) 보정 후 잔여 예산이 실제 사용량 기준으로 정확한지 확인
 - **SC-015**: 웹훅 알림 전달 실패(타임아웃/4xx/5xx) → 최대 3회 재시도 후 AlertRecord에 `webhook_status: failed` 기록 확인
 - **SC-016**: `POST /model-tiers`로 premium 티어 생성 + GPT-4o 모델 할당 → 201 + ModelTier 엔티티 생성 확인
 - **SC-017**: User에 전체 예산 200,000 토큰 + premium 예산 50,000 토큰 설정 → 두 Budget이 독립 존재 확인
@@ -200,4 +200,4 @@
 - 예산 초기화 기본 주기는 월간(monthly). 일간/주간 커스텀 주기는 v2 범위
 - 미사용 예산 이월(carryover) 없음 (zero-carryover 기본 정책)
 - 알림 전달은 웹훅까지. 이메일/Slack 등 외부 서비스 연동은 웹훅 소비자 책임
-- 토큰 추정은 input 메시지 길이 기반 간이 추정 (tiktoken 수준 정밀도는 v2)
+- 토큰 추정은 pessimistic reservation 방식: input(content/3 + overhead 4/msg) + output(max_tokens 또는 기본 256). tiktoken 수준 정밀도는 v2. reconciliation이 실제값으로 보정하므로 추정 오차는 허용

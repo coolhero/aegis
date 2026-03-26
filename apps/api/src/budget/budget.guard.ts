@@ -51,8 +51,8 @@ export class BudgetGuard implements CanActivate {
     const teamId = apiKey.teamId ?? null;
     const body = request.body;
 
-    // FR-016: Token estimation from input message length
-    const estimatedTokens = this.estimateTokens(body?.messages);
+    // FR-016: Pessimistic token estimation (input + output + overhead)
+    const estimatedTokens = this.estimateTokens(body?.messages, body);
     const estimatedCost = 0; // Cost will be calculated after model resolution
 
     // Check for idempotency key
@@ -119,17 +119,24 @@ export class BudgetGuard implements CanActivate {
     }
   }
 
-  private estimateTokens(messages: any[] | undefined): number {
+  private estimateTokens(messages: any[] | undefined, body: any): number {
     if (!messages || messages.length === 0) return 100;
 
-    let totalChars = 0;
+    // Input estimation: content + per-message overhead
+    let inputTokens = messages.length * 4; // ~4 tokens/msg for role + delimiters
     for (const msg of messages) {
       if (typeof msg.content === 'string') {
-        totalChars += msg.content.length;
+        // ~3 chars/token: conservative ratio covering Korean (~2) and English (~4)
+        inputTokens += Math.ceil(msg.content.length / 3);
       }
     }
 
-    // Rough estimation: ~4 chars per token (English average)
-    return Math.max(Math.ceil(totalChars / 4), 50);
+    // Output estimation: use max_tokens if provided, otherwise default 256
+    const maxTokens = body?.max_tokens;
+    const outputEstimate = maxTokens
+      ? Math.min(maxTokens, 4096) // cap to avoid over-reservation
+      : 256;
+
+    return Math.max(inputTokens + outputEstimate, 50);
   }
 }
