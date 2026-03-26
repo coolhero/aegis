@@ -20,7 +20,10 @@
    - 4.6: F005 Request Logging & Tracing
    - 4.7: T1 Integration — Demo Groups (DG1, DG2)
    - 4.8: F004 Regression — Token Estimation + Reconciliation 수정
-   - 4.9~4.11: 도메인 모듈 분석, HARD STOP 사례, Skill Feedback
+   - 4.9: F006 Security Guardrails
+   - 4.10: F007 Admin Dashboard
+   - 4.11: Feature별 Pipeline 결과 요약 (updated)
+   - 4.12~4.14: 도메인 모듈 분석, HARD STOP 사례, Skill Feedback
 6. [Appendix: Skill Feedback Log](#appendix-skill-feedback-log)
 
 ---
@@ -414,6 +417,8 @@ Phase 5: → Case Study finalization (EN + KO)
 | DG1 | Login→LLM→Budget Block | 8/8 | ✅ PASS | F002+F003+F004 통합. P15~P18 발견 | 1 |
 | DG2 | Auth→Logging & Tracing | 8/8 | ✅ PASS | F003+F005 통합. Trace ID 전파 확인 | 1 |
 | F004R | Regression (estimation+reconciliation) | SC-003,014 | ✅ PASS | FR-016 pessimistic estimation, FR-005 reconciliation null 수정 | 1 |
+| F006 | Security Guardrails | 8/8 | ✅ PASS | PII 마스킹, 인젝션 방어, 테넌트별 보안 정책, 스트리밍 필터. 61 신규 테스트 | 1 |
+| F007 | Admin Dashboard | 16/16 | ✅ PASS | Next.js+shadcn/ui+SSE. Playwright 런타임. P8~P11 4건 skill feedback 발견 | 2 |
 
 ### 4.2 F001 Foundation Setup
 
@@ -572,7 +577,84 @@ redis.call('HSET', KEYS[7],
 
 ---
 
-### 4.9 커스텀 도메인 모듈 활용 분석
+### 4.9 F006 Security Guardrails
+
+**Pipeline 흐름**: specify → plan → tasks → implement → verify → merge
+**성과**: LLM 입출력 보안 가드레일 — PII 마스킹, 프롬프트 인젝션 방어, 테넌트별 보안 정책, 스트리밍 필터. 61개 신규 테스트 (총 168개).
+
+**핵심 컴포넌트**:
+- **GuardPipelineService**: injection → PII → content 순서 오케스트레이션
+- **SecurityGuard**: NestJS Guard, 인젝션 탐지 + 바이패스 체크
+- **PII Scanner**: 이메일/전화번호/주민번호 패턴 매칭 → 플레이스홀더 치환
+- **StreamingFilter**: 50자 버퍼 윈도우로 SSE 청크 경계의 PII 누락 방지
+- **SecurityPolicyService**: Redis 캐싱 (TTL 5분), 테넌트별 보안 정책 조회/수정
+
+**런타임 검증 결과 (8/8 SC)**:
+- SC-001~003 (PII 마스킹 — email, phone, SSN): ✅ Unit test
+- SC-004 (인젝션 탐지 → 403): ✅ 런타임 (POST /v1/chat/completions → 403 + `prompt_injection_detected`)
+- SC-005 (Base64 인코딩 우회 탐지): ✅ Unit test
+- SC-006 (False positive 통과): ✅ 런타임 (허용 문구가 보안 필터 통과)
+- SC-007~008 (보안 정책 CRUD): ✅ 런타임 (GET/PUT /security-policies/:orgId)
+- SC-009 (member PUT → 403): ✅ 런타임 (Insufficient permissions)
+
+**교훈**:
+1. **prompt-guard 도메인 모듈 활용**: Phase 1에서 생성한 커스텀 모듈이 SC 생성 시 injection detection, PII masking 패턴을 강제하여 누락 방지
+2. **Fail-closed 설계**: 스캐너 에러 시 요청 차단 (허용이 아닌 거부) — Constitution 원칙 "안전 우선"
+3. **스트리밍 PII 경계 문제**: SSE 청크가 "john@exam" + "ple.com"으로 분리될 때 마스킹 누락 → 50자 버퍼 윈도우로 해결
+
+---
+
+### 4.10 F007 Admin Dashboard
+
+**Pipeline 흐름**: specify → plan → tasks → analyze → implement → verify → merge
+**성과**: Next.js App Router + shadcn/ui + Recharts + TanStack Query 기반 관리 대시보드. SSE 실시간 모니터링. 8개 페이지, 18 FR, 16 SC, 48 tasks.
+
+**핵심 컴포넌트**:
+- **프론트엔드 (apps/web/)**: Login, Dashboard, Usage, Budget, Users, API Keys, Logs, Realtime 페이지
+- **차트**: Recharts LineChart (사용량/비용 트렌드), BarChart (모델별/팀별 비교)
+- **인증**: JWT 메모리 저장 + Axios interceptor 자동 갱신 + refresh queue (race condition 방지)
+- **SSE**: EventSource + 지수 백오프 재연결 (1s→2s→4s→8s→max 30s + jitter)
+- **백엔드**: NestJS EventsModule (SSE 엔드포인트) + PATCH /users/:id (F003 보조 구현)
+
+**Playwright 런타임 검증 결과 (16/16 SC)**:
+- SC-001 (로그인 → 대시보드): ✅ /dashboard → /login 리다이렉트 + 로그인 → KPI 카드 렌더링
+- SC-002 (RBAC): ✅ admin 7개 메뉴 표시 + Edit 버튼
+- SC-003~004 (Usage 차트): ✅ 기간 선택기 + 탭 + Empty State
+- SC-005 (Budget Edit): ✅ Org Budget 10M/1K 저장 → 게이지 업데이트
+- SC-007 (SSE): ✅ Reconnecting 상태 + 지수 백오프 재시도
+- SC-009 (에러/빈 상태): ✅ ErrorState + EmptyState 렌더링
+- SC-010 (Invite User): ✅ 모달 → Test User 생성 → 테이블 추가
+- SC-011 (Logs): ✅ 16건 렌더링 + 필터 바
+- SC-013 (Team 생성): ✅ Create Team → Frontend Team 생성
+- SC-014 (Team Budget Edit): ✅ Edit → 800K 저장 → 게이지 업데이트
+- SC-015~016 (User→Team 배정): ✅ PATCH API 런타임 200 + UI 드롭다운
+
+**F007에서 발견된 4건의 Skill Feedback (P8~P11)**:
+
+| ID | 심각도 | 요약 | 패턴 |
+|----|--------|------|------|
+| P8 | MEDIUM | 새 프론트엔드 앱 npm install 미수행 → 런타임 verify 스킵 | implement Completeness Gate 미비 |
+| P9 | HIGH | API 파라미터 불일치를 "업스트림 미지원"으로 오분류 | 에러 원인 미조사 |
+| P10 | HIGH | 페이지 렌더링 = SC PASS로 잘못 판정 (CRUD 동작 미검증) | 부분 검증을 전체 통과로 보고 |
+| P11 | CRITICAL | 코드 작성 = 구현 완료 착각 + spec 없이 코드 추가 + verify 스킵 | 5가지 하위 패턴 (A~E) |
+
+**P11 상세 — 5가지 하위 패턴**:
+- **A**: 파일 생성 = 동작으로 간주 (런타임 미확인)
+- **B**: Happy path만 구현 (Team Budget Edit placeholder, Logs 타입 불일치)
+- **C**: SC 문구의 일부만 구현하고 전체 PASS 보고
+- **D**: SDD 원칙 위반 — spec 없이 코드 직접 추가 (Team 생성 UI)
+- **E**: Cascading update 후 새 SC에 대한 verify 스킵
+
+**교훈**:
+1. **implement ≠ 코드 작성. implement = 코드 작성 + 런타임 동작 확인**
+2. **verify Phase 3는 "모든 SC를 Playwright로 동작 검증"이어야 함. 렌더링 ≠ PASS**
+3. **spec에 없는 기능은 코드가 아니라 spec부터 추가** (SDD Cascading Update Protocol)
+4. **API 에러 발생 시 "스킵"이 아니라 "원인 조사 → 수정 → 재검증"**
+5. **프론트엔드 Feature는 `npm install + dev 서버 시작 + API smoke test`가 implement Completeness Gate에 포함되어야 함**
+
+---
+
+### 4.12 커스텀 도메인 모듈 활용 분석
 
 Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻게 활용되었는지:
 
@@ -597,9 +679,11 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 
 | 모듈 섹션 | 활용 단계 | 구체적 활용 |
 |-----------|-----------|------------|
-| — | (F006에서 활용 예정) | F004까지는 직접 활용 없음. F006 Security Guardrails에서 본격 활용 |
+| S1 (SC Rules) | specify | Injection detection, PII masking, Content filtering 패턴 강제. 입출력 마스킹 SC 생성 시 커버리지 보장 |
+| S5 (Elaboration Probes) | add | Detection method, Masking strategy, False positive handling, Bypass policy 질문 |
+| S7 (Bug Prevention) | plan, implement | PG-001~005 (Regex bypass, Base64 encoding, Streaming boundary, False positive, Fail-open) → 설계 시 normalizer, buffer window, fail-closed 반영 |
 
-### 4.10 HARD STOP이 가치를 발휘한 사례
+### 4.13 HARD STOP이 가치를 발휘한 사례
 
 | # | 단계 | 사례 | HARD STOP 없었다면 |
 |---|------|------|-------------------|
@@ -610,7 +694,7 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 
 **핵심 교훈**: HARD STOP은 단순한 "승인 절차"가 아니라, 사용자가 **도메인 지식을 주입할 수 있는 유일한 시점**이다. F004에서 "모델별 예산" 결정은 코드 분석으로는 도출할 수 없고, 사업 요구사항에서 나온다.
 
-### 4.11 Skill Feedback 요약 (P1~P18)
+### 4.14 Skill Feedback 요약 (P1~P18 + F007 P8~P11)
 
 18건의 skill feedback이 발생. 에스컬레이션 패턴별 분류:
 
@@ -624,8 +708,12 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 | **설계 이슈** | P10, P11, P13 | 기존 산출물 처리 지침 부재, US-SC 불일치 미감지, 환경 확인 미수행 |
 | **환경/인프라 갭** | P15, P16 | .env 미인식 (셸 ≠ dotenv), Budget Guard 3중 함정 (off-by-one, tier 독립, Redis scan 불안정) |
 | **에이전트 검증 누락** | P17, P18 | interactive 모드 미검증 완료 선언, demo UX 가이드 부재 |
+| **F007: 프론트엔드 검증 미비** | F007-P8 | 새 앱 npm install 미수행 → 런타임 verify 스킵 |
+| **F007: 에러 오분류** | F007-P9 | API 파라미터 불일치를 "업스트림 미지원"으로 잘못 분류 |
+| **F007: 부분 검증 = PASS** | F007-P10 | 페이지 렌더링만 확인, CRUD 동작 미검증으로 PASS 보고 |
+| **F007: 구현 미완성 보고** | F007-P11 | 코드 작성 = 완료 착각, spec 없이 코드 추가, cascading update 후 verify 스킵 |
 
-**개선 추이**: P1~P3 (초기, 치명적) → P5~P7 (중기, verify 품질) → P10~P14 (후기, 세부 이슈) → P15~P18 (통합 단계, 환경+UX). Phase가 진행될수록 기술적 이슈에서 UX/프로세스 이슈로 이동.
+**개선 추이**: P1~P3 (초기, 치명적) → P5~P7 (중기, verify 품질) → P10~P14 (후기, 세부 이슈) → P15~P18 (통합, 환경+UX) → F007 P8~P11 (프론트엔드 Feature, 새로운 검증 패턴). 프론트엔드 Feature에서 새로운 유형의 검증 문제가 대량 발생 — **백엔드 Feature와 프론트엔드 Feature는 다른 검증 전략이 필요함**.
 
 **가장 중요한 교훈**:
 1. **verify는 "빌드+테스트 통과"가 아니라 "실제 서버에서 SC 검증"** (P2, P5, P6)
@@ -634,15 +722,19 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 4. **환경 상태를 먼저 확인하고, 없을 때만 사용자에게 요청** (P7, P13)
 5. **사용자가 "A + B 둘 다"라고 하면 반드시 각각 독립 검증** (P17)
 6. **Demo는 CI 자동화와 Interactive 가이드가 다른 목적 — 둘 다 설계** (P18)
+7. **프론트엔드 Feature는 백엔드와 다른 verify 전략 필요**: Playwright로 모든 SC의 전체 동작을 검증, API smoke test 필수 (F007-P8~P11)
+8. **spec에 없으면 코드를 쓰지 않는다**: 누락 발견 시 spec → plan → tasks → implement → verify Cascading Update (F007-P11-D)
 
 ---
 
 ## Appendix: Skill Feedback Log
 
-> 전체 18건의 skill feedback은 `docs/skill-feedback.md`에 기록됨.
-> Pipeline 단계별: P1~P14 (F001~F005 pipeline), P15~P18 (Integration Demo)
-> 주요 이슈: P1(산출물 불완전), P3(병렬 실행 위반), P5(런타임 검증 미수행), P9(HARD STOP 스킵), P16(Budget Guard 3중 함정), P17(검증 누락 완료 선언)
+> 전체 skill feedback은 `docs/skill-feedback.md`에 기록됨.
+> - F001~F005 pipeline: P1~P14 (14건)
+> - Integration Demo: P15~P18 (4건)
+> - F007 Admin Dashboard: P8~P11 (4건, 별도 넘버링)
+> 주요 이슈: P1(산출물 불완전), P3(병렬 실행 위반), P5(런타임 검증 미수행), P9(HARD STOP 스킵), P16(Budget Guard 3중 함정), P17(검증 누락 완료 선언), F007-P11(5가지 미완성 패턴)
 
 ---
 
-*Last updated: 2026-03-26*
+*Last updated: 2026-03-27*
