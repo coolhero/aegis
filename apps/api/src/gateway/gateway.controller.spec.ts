@@ -14,6 +14,8 @@ import { BudgetEngineService } from '../budget/budget-engine.service';
 import { BudgetAlertService } from '../budget/budget-alert.service';
 import { BudgetGuard } from '../budget/budget.guard';
 import { RequestLoggerInterceptor } from '../logging/request-logger.interceptor';
+import { SecurityGuard } from '../security/security.guard';
+import { GuardInterceptor } from '../security/guard.interceptor';
 
 describe('GatewayController', () => {
   let controller: GatewayController;
@@ -72,7 +74,11 @@ describe('GatewayController', () => {
       .useValue({ canActivate: () => true })
       .overrideGuard(BudgetGuard)
       .useValue({ canActivate: () => true })
+      .overrideGuard(SecurityGuard)
+      .useValue({ canActivate: () => true })
       .overrideInterceptor(RequestLoggerInterceptor)
+      .useValue({ intercept: (_ctx: any, next: any) => next.handle() })
+      .overrideInterceptor(GuardInterceptor)
       .useValue({ intercept: (_ctx: any, next: any) => next.handle() })
       .compile();
 
