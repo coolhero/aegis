@@ -2,11 +2,13 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Req,
   UseGuards,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -115,6 +117,29 @@ export class OrganizationController {
     });
     const saved = await this.userRepository.save(user);
     // Don't return passwordHash
+    const { passwordHash, refreshTokenHash, ...result } = saved;
+    return result;
+  }
+
+  @Patch('users/:id')
+  @Roles(UserRole.ADMIN)
+  async updateUser(
+    @Param('id') id: string,
+    @Body() body: { role?: UserRole; teamId?: string | null },
+    @Req() req: any,
+  ) {
+    const { orgId } = req.user.tenantContext;
+    const user = await this.userRepository.findOne({ where: { id, orgId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (body.role !== undefined) {
+      user.role = body.role;
+    }
+    if (body.teamId !== undefined) {
+      user.teamId = body.teamId;
+    }
+    const saved = await this.userRepository.save(user);
     const { passwordHash, refreshTokenHash, ...result } = saved;
     return result;
   }

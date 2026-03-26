@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { BudgetModule } from './budget/budget.module';
 import { LoggingModule } from './logging/logging.module';
 import { SecurityModule } from './security/security.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { SecurityModule } from './security/security.module';
     BudgetModule,
     LoggingModule,
     SecurityModule,
+    EventsModule,
   ],
   providers: [LoggerService],
   exports: [LoggerService],
