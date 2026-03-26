@@ -35,9 +35,9 @@
 
 | FID | Name | Status | Tier | Phase | Branch | Notes |
 |-----|------|--------|------|-------|--------|-------|
-| F001 | Foundation Setup | completed | T0 | verified | main | verify-report.md generated, all SCs runtime |
-| F002 | LLM Gateway Core | completed | T1 | verified | main | verify-report.md generated, real LLM calls |
-| F003 | Auth & Multi-tenancy | completed | T1 | verified | main | verify-report.md generated, inline fix: SC-003 jti |
+| F001 | Foundation Setup | completed | T0 | verified | main | Lint ✅ (eslint.config.mjs), 8/8 SC runtime, verify-report.md |
+| F002 | LLM Gateway Core | completed | T1 | verified | main | 4/4 SC runtime (real LLM), verify-report.md |
+| F003 | Auth & Multi-tenancy | completed | T1 | verified | main | 10/10 SC runtime, inline fix: SC-003 jti, verify-report.md |
 | F004 | Token Budget Management | pending | T1 | pre-context | — | |
 | F005 | Request Logging & Tracing | pending | T1 | pre-context | — | |
 | F006 | Security Guardrails | pending | T2 | pre-context | — | |
@@ -47,3 +47,11 @@
 | F010 | Prompt Management | pending | T3 | pre-context | — | |
 | F011 | Semantic Cache | pending | T3 | pre-context | — | |
 | F012 | Developer Playground | pending | T3 | pre-context | — | |
+
+## Toolchain
+
+| Tool | Status | Command | Notes |
+|------|--------|---------|-------|
+| Build | ✅ available | `npm run build` (nest build api, webpack) | |
+| Test | ✅ available | `npm test` (jest) | 37 tests, 6 suites |
+| Lint | ✅ available | `npm run lint` (eslint v10 + typescript-eslint) | eslint.config.mjs, 0 errors 35 warnings |

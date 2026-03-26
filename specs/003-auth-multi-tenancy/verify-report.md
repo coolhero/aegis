@@ -10,11 +10,11 @@
 | Metric | Result |
 |--------|--------|
 | Feature | F003-Auth & Multi-tenancy |
-| Spec SCs | 10 (SC-001~SC-010) |
+| Spec SCs | 10 (SC-001 ~ SC-010) |
 | SCs Verified | 10/10 |
 | Build | PASS |
-| Tests | 37/37 tests |
-| Lint | ℹ️ not configured |
+| Tests | 37/37 tests (6 suites) |
+| Lint | PASS — 0 errors, 35 warnings |
 | Runtime Verified | Yes (all SCs via curl against running server) |
 | Demo Executed | Yes (--ci mode) |
 | Cross-Feature | PASS (F001 health, F002 gateway integrated) |
@@ -38,8 +38,9 @@
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Build | ✅ | webpack compiled successfully |
-| Lint | ℹ️ | not configured |
+| Build | ✅ | `npm run build` — webpack compiled successfully |
+| TypeScript | ✅ | No type errors |
+| Lint | ✅ | 0 errors, 35 warnings (eslint v10 + typescript-eslint, eslint.config.mjs) |
 | Unit Tests | ✅ | 37/37 passed (6 suites) |
 
 ---
@@ -48,8 +49,8 @@
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Entity Registry | ✅ | Organization, Team, User, ApiKey match with FK info |
-| API Contract | ✅ | Auth endpoints match contracts/, Gateway has ApiKeyAuthGuard |
+| Entity Registry Consistency | ✅ | Organization, Team, User, ApiKey — 4 entities match registry |
+| API Contract Compatibility | ✅ | 13 API endpoints match contracts/ |
 | F001 Dependency | ✅ | ConfigModule, DatabaseModule consumed |
 | F002 Integration | ✅ | GatewayController protected by ApiKeyAuthGuard + model scope check |
 | Plan Deviation | ✅ | 4 entities match, 13 API endpoints, tasks 100% |
@@ -58,24 +59,24 @@
 
 ## Phase 3: SC Runtime Verification
 
-> Application: localhost:3000. DB: up. Redis: up. OPENAI_API_KEY: set. ANTHROPIC_API_KEY: set.
+> Application: localhost:3000. Database: up. Redis: up. OPENAI_API_KEY: set. ANTHROPIC_API_KEY: set.
 
 | SC | Description | Category | Method | Expected | Actual | Result |
 |----|-------------|----------|--------|----------|--------|--------|
-| SC-001 | API Key valid → 200 | api-auto | `curl POST /v1/chat/completions` with x-api-key | 200 + LLM response | 200 + gpt-4o-mini response | ✅ |
-| SC-001 | API Key invalid → 401 | api-auto | `curl` with invalid x-api-key | 401 | 401 "Invalid API key" | ✅ |
-| SC-002 | Login valid → 200 | api-auto | `curl POST /auth/login` | 200 + tokens + user | 200 + accessToken + refreshToken + user | ✅ |
-| SC-002 | Login invalid → 401 | api-auto | `curl POST /auth/login` wrong pw | 401 | 401 "Invalid credentials" | ✅ |
-| SC-003 | Refresh → new tokens | api-auto | `curl POST /auth/refresh` | 200 + new pair | 200 + new tokens | ✅ |
-| SC-003 | Refresh reuse → 401 | api-auto | `curl POST /auth/refresh` old token | 401 | 401 "Invalid refresh token" | ✅ |
-| SC-004 | Org/Team/User CRUD | api-auto | `curl GET /organizations, /teams, /users` | 200 + data | 200 + 1 org, 2 teams, 3 users | ✅ |
-| SC-005 | RBAC member write → 403 | api-auto | `curl POST /teams` as member | 403 | 403 "Insufficient permissions" | ✅ |
-| SC-006 | Key create → raw key | api-auto | `curl POST /api-keys` | 201 + key field | 201 + `key:"aegis_..."`, hasKey=YES | ✅ |
-| SC-006 | Key revoke → 200 | api-auto | `curl DELETE /api-keys/:id` | 200 + revoked | 200 + revoked:true | ✅ |
-| SC-007 | Cross-tenant → 403 | api-auto | `curl GET /organizations/:otherOrgId` | 403 | 403 "Access denied" | ✅ |
-| SC-008 | TenantContext propagation | api-auto | Implicit via SC-004,007 | Correct scoping | All queries scoped to tenant | ✅ |
-| SC-009 | Scope enforcement → 403 | api-auto | `curl POST /v1/chat/completions` scoped key + wrong model | 403 | 403 "API key does not have access to model" | ✅ |
-| SC-010 | Seed data present | api-auto | `curl GET /users` | ≥3 users | 3 users seeded | ✅ |
+| SC-001 | API Key valid → 200 | api-auto | runtime: curl POST /v1/chat/completions with x-api-key → 200 | 200 + LLM response | 200 + gpt-4o-mini response | ✅ |
+| SC-001 | API Key invalid → 401 | api-auto | runtime: curl POST /v1/chat/completions with invalid x-api-key → 401 | 401 | 401 "Invalid API key" | ✅ |
+| SC-002 | Login valid → 200 | api-auto | runtime: curl POST /auth/login → 200 | 200 + tokens + user | 200 + accessToken + refreshToken + user | ✅ |
+| SC-002 | Login invalid → 401 | api-auto | runtime: curl POST /auth/login (wrong password) → 401 | 401 | 401 "Invalid credentials" | ✅ |
+| SC-003 | Refresh → new tokens | api-auto | runtime: curl POST /auth/refresh → 200 | 200 + new token pair | 200 + new tokens | ✅ |
+| SC-003 | Refresh reuse → 401 | api-auto | runtime: curl POST /auth/refresh (old token) → 401 | 401 (rotation enforced) | 401 "Invalid refresh token" | ✅ |
+| SC-004 | Org/Team/User CRUD | api-auto | runtime: curl GET /organizations → 200, GET /teams → 200, GET /users → 200 | 200 + data | 200 + 1 org, 2 teams, 3 users | ✅ |
+| SC-005 | RBAC member write → 403 | api-auto | runtime: curl POST /teams as member → 403 | 403 | 403 "Insufficient permissions" | ✅ |
+| SC-006 | Key create → raw key | api-auto | runtime: curl POST /api-keys → 201 | 201 + raw key | 201 + `key:"aegis_..."` | ✅ |
+| SC-006 | Key revoke → 200 | api-auto | runtime: curl DELETE /api-keys/:id → 200 | 200 + revoked | 200 + revoked:true | ✅ |
+| SC-007 | Cross-tenant → 403 | api-auto | runtime: curl GET /organizations/:otherOrgId → 403 | 403 | 403 "Access denied" | ✅ |
+| SC-008 | TenantContext propagation | api-auto | runtime: curl (verified via SC-004 + SC-007 tenant scoping) | Correct scoping | All queries scoped to tenant | ✅ |
+| SC-009 | Scoped key + wrong model → 403 | api-auto | runtime: curl POST /v1/chat/completions (scoped key + disallowed model) → 403 | 403 | 403 "API key does not have access to model" | ✅ |
+| SC-010 | Seed data present | api-auto | runtime: curl GET /users → 200 | 3 seed users | 3 users present | ✅ |
 
 ### Inline Fix Applied During Verify
 
@@ -89,7 +90,7 @@
 
 | Demo | Command | Exit Code | Result |
 |------|---------|-----------|--------|
-| CI mode | `demos/F003-auth-multi-tenancy.sh --ci` | 0 | ✅ Build passed, 37 tests passed |
+| CI mode | `demos/F003-auth-multi-tenancy.sh --ci` | 0 | ✅ |
 
 ---
 
@@ -126,7 +127,7 @@ POST /v1/chat/completions + scoped key ["gpt-4o"] + model "claude-sonnet-4-20250
 
 ## Decision
 
-- [x] **READY FOR MERGE** — 10/10 SCs runtime verified, 1 minor inline fix, demo --ci passes
+- [x] **READY FOR MERGE** — 10/10 SCs runtime verified, 1 minor inline fix, demo --ci passes, no blocking issues
 
 ---
 
