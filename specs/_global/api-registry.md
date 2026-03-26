@@ -27,6 +27,7 @@
 | POST | `/api-keys` | F003 | F007 | API Key 생성 |
 | GET | `/api-keys` | F003 | F007 | API Key 목록 조회 |
 | DELETE | `/api-keys/:id` | F003 | F007 | API Key 폐기 |
+| PATCH | `/users/:id` | F007 (F003 보조) | F007 | 사용자 역할/팀 수정 (Admin 전용) |
 
 ## F004 — Token Budget Management
 
@@ -62,6 +63,7 @@
 | Method | Path | Provider | Consumer(s) | Description |
 |--------|------|----------|-------------|-------------|
 | — | `/dashboard/*` | F007 (UI) | Browser | Next.js 웹 대시보드 |
+| GET | `/events/stream` | F007 (Backend) | F007 (UI) | SSE 실시간 이벤트 스트림 (테넌트 격리, JWT 인증) |
 
 ## F008 — Provider Fallback & LB
 

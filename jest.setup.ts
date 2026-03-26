@@ -8,6 +8,6 @@ process.env.REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 process.env.REDIS_PORT = process.env.REDIS_PORT || '6379';
 process.env.PORT = process.env.PORT || '3000';
 // Jest sets NODE_ENV=test by default, override to match our Environment enum
-process.env.NODE_ENV = 'development';
+(process.env as Record<string, string>).NODE_ENV = 'development';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-only';
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key-for-testing-only';

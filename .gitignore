@@ -8,3 +8,7 @@ dist/
 .turbo
 coverage/
 node_modules/
+
+# Next.js
+apps/web/.next/
+apps/web/node_modules/

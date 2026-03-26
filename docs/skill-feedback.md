@@ -820,4 +820,182 @@ Implement 완료 시 Completeness Gate에서 모든 task 파일 존재 여부를
 
 - **Status**: FIXED (데모 스크립트 즉시 생성)
 
+---
+
+## P8: Verify에서 새 프론트엔드 앱 npm install 미수행 → 런타임 검증 스킵
+
+**발견 시점**: 2026-03-26, F007 Admin Dashboard verify 단계
+**심각도**: MEDIUM
+**영향 범위**: F007
+
+### 증상
+
+F007은 새 Next.js 프론트엔드(`apps/web/`)를 생성하는 Feature인데, implement 후 `npm install`을 실행하지 않아 Next.js dev 서버를 시작할 수 없었음. 에이전트가 이를 "Playwright 미구성"으로 잘못 분류하고 코드 레벨 검증으로 대체함.
+
+실제로는:
+- Playwright MCP는 구성되어 있음
+- 문제는 `apps/web/node_modules`가 없어서 앱 자체를 실행할 수 없었던 것
+- SKILL.md Rule 5 위반: "인프라가 없으면 설치하거나 사용자에게 요청"해야 함
+
+### 원인 분석
+
+1. **tasks.md 누락**: T001-T003에서 "Next.js 초기화 + 의존성 설치"를 정의했지만, 실제 implement에서 `package.json`만 생성하고 `npm install`을 실행하지 않음
+2. **Completeness Gate 미비**: implement 단계의 Completeness Gate에서 "새 앱의 node_modules 존재 여부"를 체크하지 않음
+3. **verify의 잘못된 분류**: "앱 실행 불가" 상태를 "Playwright 미구성"으로 오분류 → Rule 5의 "설치 또는 요청" 경로를 타지 않음
+
+### 기대 동작
+
+1. **implement 시**: 새 프론트엔드 앱 생성 task에서 `npm install`을 반드시 실행
+2. **implement Completeness Gate**: 새 앱의 `node_modules/` 존재 + dev 서버 시작 가능 여부 확인
+3. **verify 시**: "앱 실행 불가"면 먼저 `npm install` 시도 → 그래도 안 되면 사용자에게 요청. "Playwright 미구성"과 "앱 미설치"를 구분
+
+### 제안
+
+- `commands/pipeline.md` implement Completeness Gate에 "새 앱 npm install + dev 서버 시작 확인" 항목 추가
+- `commands/verify-phases.md`에 "앱 미설치" 시나리오 분기 추가 (Playwright 미구성과 별개)
+
+- **Status**: FIXED (npm install 실행 + verify-report 업데이트)
+
+---
+
+## P9: Verify 런타임 검증에서 에러 상태를 "PASS"로 보고 — 불완전 검증
+
+**발견 시점**: 2026-03-26, F007 verify Phase 3 (SC 런타임 검증)
+**심각도**: HIGH
+**영향 범위**: F007 verify 신뢰성
+
+### 증상
+
+1. **Usage 페이지 API 파라미터 불일치**: 프론트엔드가 `period=last7d&groupBy=day`로 요청했지만 백엔드 API는 `period: daily|weekly|monthly`, `groupBy: model|team|user`만 허용 → 400 에러 → "Failed to load usage data" 에러 상태 표시. 에이전트는 이것을 "F005 범위 밖"으로 분류하고 SC-003을 ⚠️ PARTIAL로 보고했으나, **실제로는 F007의 쿼리 파라미터 매핑 버그**였음.
+
+2. **Dashboard "toLocaleString" 런타임 에러**: API 응답 구조가 `{ org: {...}, teams: [...] }`인데, `org`가 없을 때 `data.org?.tokens_used?.toLocaleString()` 체인에서 `?` 연산자로 처리했음에도, 실제로는 API unwrap 후 응답 구조가 달라서 에러 발생.
+
+### 원인 분석
+
+1. **Rule 3 (Empty Results → Investigate, Don't Report) 위반**: Usage 페이지에서 400 에러가 발생했을 때, "API가 파라미터를 미지원"으로 보고만 했지, 실제 에러 메시지를 확인하여 파라미터 불일치를 진단하지 않음.
+
+2. **Rule 4 (Fix → Runtime Verify → Report) 위반**: API unwrap interceptor를 추가한 후, 모든 페이지를 다시 런타임 검증하지 않고 일부만 확인하고 PASS로 보고함.
+
+3. **Verify Phase 3의 SC 검증 깊이 부족**: SC-003 "차트가 정확히 렌더링"을 검증할 때, 에러 상태가 표시되면 "UI는 OK"가 아니라 **실패**로 판정해야 함. 에러 상태 UI가 렌더링되는 것은 SC-009 (에러 상태)의 PASS이지, SC-003 (차트 렌더링)의 PASS가 아님.
+
+### 기대 동작
+
+1. **런타임 에러 → 원인 조사**: 400/404 에러가 발생하면 API의 실제 에러 메시지를 확인하고, 프론트엔드 파라미터가 맞는지 검증
+2. **API 파라미터 매핑 검증**: implement 단계에서 백엔드 API의 실제 파라미터를 `curl`로 확인한 후 프론트엔드 코드 작성
+3. **SC 검증 정확성**: 에러 상태 표시 ≠ 해당 SC PASS. "차트 렌더링 SC"에서 에러 상태가 나오면 FAIL.
+
+### 제안
+
+- `commands/verify-phases.md` Phase 3에 "API 에러 시 에러 메시지 확인 + 프론트엔드 파라미터 매칭 검증" 단계 추가
+- `commands/pipeline.md` implement에 "API 파라미터 smoke test" 단계 추가 (curl로 실제 API 호출 확인 후 프론트엔드 코드 작성)
+
+- **Status**: FIXED (파라미터 매핑 + Empty State 방어 코드 수정)
+
+---
+
+## P10: Verify Phase 3에서 SC 부분 검증을 PASS로 보고 — 페이지 렌더링 ≠ SC 완료
+
+**발견 시점**: 2026-03-26, F007 verify 사용자 데모 중
+**심각도**: HIGH
+**영향 범위**: F007 전체 verify 신뢰성
+
+### 증상
+
+1. **Budget Edit**: Playwright로 Budget 페이지에 진입하여 게이지 렌더링만 확인 → SC-005 PASS. 실제로 Edit 클릭 → 값 변경 → Save 흐름은 테스트하지 않음.
+2. **Invite User**: Users 페이지에 아예 Playwright로 진입하지 않음. 코드 레벨로 "UI 구현 완료" → SC-010 PASS. 실제로는 `POST /users`에 password가 필요한데 UI에서 password 필드가 없어서 500 에러 발생.
+3. **API Keys**: API Keys 페이지도 런타임 미진입. 생성/폐기 흐름 미검증.
+
+### 원인 분석
+
+1. **Pipeline Completion Bias (Rule B-1 위반)**: specify→plan→tasks→analyze→implement 후 verify에서 "빨리 끝내자" 편향 발생. 4개 페이지만 Playwright 확인하고 나머지는 코드 리뷰로 대체.
+2. **Rule 5 위반**: "npm run build + npm test ≠ verify 완료. 각 SC를 런타임에서 검증해야 함." 에이전트는 일부 SC만 런타임, 나머지는 코드 레벨로 처리.
+3. **Rule 6 위반**: "SC의 COMPLETE 동작이 검증되어야 PASS." Budget 페이지 표시 = SC-005의 "조회" 부분만. "편집 → 저장 → 업데이트" 부분은 미검증.
+4. **API smoke test 미수행**: Invite User의 `POST /users`가 password_hash를 필요로 하는지 implement 시점에 curl로 확인하지 않음.
+
+### 기대 동작
+
+1. **Verify Phase 3**: 모든 SC를 Playwright로 순차 검증. "페이지 접근 + 렌더링"뿐 아니라 "동작 → 결과 확인"까지.
+2. **SC별 검증 스크립트**: 각 SC에 대해 Given/When/Then 시나리오를 Playwright 액션으로 변환하여 실행.
+3. **Implement 시 API smoke test**: 프론트엔드에서 호출할 모든 API를 curl로 먼저 확인한 후 프론트엔드 코드 작성.
+
+### 제안
+
+- `commands/verify-phases.md` Phase 3에 "SC별 Playwright 액션 체크리스트" 필수화
+- "페이지 렌더링 = PASS" 패턴을 명시적으로 금지: "렌더링은 Loading/Error/Empty 상태 SC만 검증. CRUD SC는 반드시 동작 실행 + 결과 확인"
+- Implement Completeness Gate에 "프론트엔드 API smoke test (curl)" 단계 추가
+
+- **Status**: FIXED (Invite User password 필드 추가, Budget Org edit 런타임 확인)
+
+---
+
+## P11: Implement에서 "코드 작성 = 구현 완료" 착각 — 실제 동작하지 않는 코드를 완료로 보고
+
+**발견 시점**: 2026-03-26, F007 사용자 직접 데모 중
+**심각도**: CRITICAL
+**영향 범위**: F007 구현 신뢰성 전체
+
+### 증상
+
+사용자가 직접 대시보드를 사용해보니 여러 기능이 동작하지 않음:
+
+1. **Logs 페이지**: Unhandled Runtime Error 발생 — API 응답 구조와 프론트엔드 타입 불일치
+2. **Team 생성 UI 없음**: 사이드바에 Teams 관리 페이지가 없음. Budget 페이지에서 Team 목록은 보이지만 Team을 생성/관리하는 UI가 없음
+3. **Team Budget Edit 미동작**: Team Budgets의 Edit 링크가 실제로 편집 모달을 열지 않음 — `<span>` 태그에 onClick 없음
+
+### 원인 분석 (3 패턴)
+
+**패턴 A — "코드 작성 = 동작" 착각**: 에이전트가 파일을 생성하고 코드를 작성하면 "구현 완료"로 간주. 실제로 코드가 런타임에서 동작하는지 확인하지 않음. implement 단계에서 40+ 파일을 빠르게 생성하면서 각 파일의 실제 동작을 검증하지 않는 패턴.
+
+**패턴 B — "Happy Path Only" 구현**: Org Budget Edit만 구현하고 Team Budget Edit는 placeholder `<span>` 태그로 남김. Logs 페이지에서 API 응답 파싱을 고려하지 않음. 에이전트가 핵심 경로(happy path)만 구현하고 나머지를 "TODO"로 남기는 패턴.
+
+**패턴 C — "SC 문구 vs 실제 동작" 괴리**: SC-005는 "Org 예산 설정 UI에서 CRUD"라고 하지만, Team/User 레벨 예산도 FR-005 범위. 에이전트가 SC 문구의 일부만 구현하고 전체를 PASS로 보고.
+
+### 구체적 미구현 항목
+
+| 항목 | 상태 | 원인 |
+|------|------|------|
+| Logs 페이지 런타임 에러 | 깨짐 | API 응답 구조 미확인 |
+| Team 생성 UI | 미구현 | spec에 "Team 예산 설정/수정"은 있지만 "Team 자체 생성"은 FR에 없음. pre-context에서 Team API를 "소비"한다고 했지만 Team 생성은 F003 범위로 가정. **Specify 단계에서 "Team 조회/예산만 vs Team CRUD 포함"을 명시적으로 결정하지 않은 것이 근본 원인**. Budget 페이지에 Create Team 기능 추가로 해결 |
+| Team Budget Edit | placeholder | `<span>Edit</span>` — onClick handler 없음 |
+| API 응답 에러 처리 | 부분적 | 일부 페이지만 try/catch, 나머지는 런타임 에러 |
+
+### 기대 동작
+
+1. **Implement Per-Task Runtime Verify**: 각 task 완료 후 `curl` 또는 Playwright로 해당 기능이 실제 동작하는지 확인
+2. **SC 전체 범위 구현**: SC에 명시된 모든 조건을 구현 (Org뿐 아니라 Team/User도)
+3. **Placeholder 금지**: `<span>Edit</span>` 같은 placeholder는 미완성 표시 — implement 단계에서 모든 인터랙션에 실제 핸들러 바인딩
+
+### 제안
+
+- `commands/pipeline.md` implement에 "Per-Task Runtime Verify" 필수화: 코드 작성 → 서버 시작 → 해당 기능 동작 확인 → 다음 task
+- Implement Completeness Gate에 "모든 클릭 가능한 UI 요소에 실제 핸들러가 바인딩되어 있는지 확인" 항목 추가
+- verify Phase 3에서 "모든 클릭 가능한 요소를 Playwright로 클릭하여 에러 없음 확인" 단계 추가
+
+### 추가 패턴 D — SDD 원칙 위반: spec 없이 코드 직접 추가
+
+verify에서 누락 기능을 발견했을 때, 에이전트가 spec.md에 FR/SC를 추가하지 않고 바로 코드를 작성함. 이는 SDD의 핵심 원칙 위반:
+
+- **Constitution Rule "VI. Demo-Ready Delivery"**: 데모 가능해야 하지만 spec → plan → tasks → implement 파이프라인을 거쳐야 함
+- **Bug Fix Severity Rule**: Team 생성 UI 누락은 "Major-Spec" (spec에 FR이 없음) → Cascading Update Protocol에 따라 spec.md에 FR 추가 → plan 갱신 → tasks 갱신 → implement
+- **에이전트 실제 행동**: spec/plan/tasks 수정 없이 Budget 페이지에 Create Team 모달 직접 추가
+
+**올바른 흐름**:
+1. verify에서 "Team 생성 UI 없음" 발견
+2. Spec Coverage Pre-check: spec.md에 Team CRUD FR이 없음 → Major-Spec
+3. spec.md에 FR-015 (Team CRUD) + SC-013 추가
+4. plan.md에 Team 관리 컴포넌트 추가
+5. tasks.md에 Team 생성 태스크 추가
+6. implement: 태스크 실행
+7. verify: SC-013 런타임 확인
+
+- **Status**: FIXED — spec/tasks cascading update 완료
+
+### 패턴 E — Cascading Update 후 verify 스킵
+
+spec에 FR/SC를 추가하고 코드를 구현한 후, 새로 추가된 SC에 대한 런타임 verify를 수행하지 않고 바로 merge를 제안함. SDD에서 모든 SC는 verify Phase 3에서 런타임 검증을 거쳐야 하며, 새로 추가된 SC도 예외가 아님.
+
+**올바른 흐름**: spec 추가 → tasks 추가 → implement → **verify (새 SC 런타임 검증)** → merge
+
+- **Status**: OPEN — SC-015 (User→Team 배정) 런타임 검증 미수행
+
 *Last updated: 2026-03-26*

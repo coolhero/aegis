@@ -11,7 +11,7 @@ const config: Config = {
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
-  roots: ['<rootDir>/apps/', '<rootDir>/libs/'],
+  roots: ['<rootDir>/apps/api/', '<rootDir>/libs/'],
   moduleNameMapper: {
     '^@aegis/common(|/.*)$': '<rootDir>/libs/common/src/$1',
   },
