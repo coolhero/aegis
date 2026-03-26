@@ -656,4 +656,168 @@ Constitution → spec-kit은 constitution.md를 생성하는 단계에서만 관
 
 ---
 
+---
+
+## P15 — Demo Script가 .env의 API Key를 인식 못 함
+
+- **발견 시점**: 2026-03-26 DG1/DG2 Integration Demo --ci 실행 시
+- **증상**: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`가 `.env`에 설정돼 있는데도 demo 스크립트가 "No LLM API key — skipping" 출력
+- **원인 분석**:
+  - NestJS 서버는 `@nestjs/config` + `dotenv`로 `.env`를 자동 로드 → 서버는 키 인식 O
+  - Demo bash 스크립트는 `${OPENAI_API_KEY:-}`로 **셸 환경변수**만 체크 → `.env`는 읽지 않음
+  - `.env`에 키를 넣었지만 `export`하지 않은 상태라 셸 환경에는 존재하지 않음
+  - **셸 환경 ≠ .env 파일** — 이 갭을 고려하지 않은 설계 오류
+- **수정**:
+  - DG1, DG2 스크립트 상단에 `.env` source 로직 추가:
+    ```bash
+    if [[ -z "${OPENAI_API_KEY:-}" && -z "${ANTHROPIC_API_KEY:-}" && -f "$ENV_FILE" ]]; then
+      set -a; source "$ENV_FILE"; set +a
+    fi
+    ```
+  - `set -a` / `set +a`로 source한 변수를 자동 export
+- **교훈**: NestJS가 `.env`를 자동 로드한다고 해서 같은 프로젝트의 bash 스크립트도 자동으로 읽는 것이 아님. demo/CI 스크립트 작성 시 `.env` fallback source 필수.
+- **영향 범위**: F002 demo도 같은 문제 가능 (환경변수 직접 체크 패턴)
+- **Status**: FIXED (DG1, DG2 스크립트 수정 완료)
+
+---
+
+## P16 — Integration Demo에서 Budget Guard의 3중 함정
+
+- **발견 시점**: 2026-03-26 DG1/DG2 --ci 반복 실행 시
+- **증상**: 예산을 10M으로 설정했는데도 429 반환, 또는 예산을 1로 설정했는데 200 반환
+- **원인 분석 (3개 동시 발견)**:
+
+  ### P16-a: Budget Guard `>` (strict greater than) — off-by-one
+  - Lua 조건: `(user_tokens + est_tokens) > user_limit_tokens`
+  - `est_tokens ≈ 1` (짧은 메시지), `user_tokens = 0`, `limit = 1` → `1 > 1` = **false** → 통과!
+  - `>=`가 아닌 `>`를 사용하므로, 사용량이 limit과 정확히 같으면 허용됨
+  - **교훈**: 예산 0이 "무제한"(skip check)이고, 예산 1이 off-by-one으로 통과하므로, tiny budget 테스트는 **먼저 사용량을 쌓은 후 limit을 낮춰야** 확실한 429을 유도 가능
+
+  ### P16-b: Tier-Specific Budget이 Global Budget과 독립 — 교차 오염
+  - gpt-4o 모델이 model tier `40cf2d3e-...`에 할당된 상태
+  - `PUT /budgets/user/{id}` (model_tier_id 없음) = **Global** budget만 변경
+  - Tier budget은 별도 DB 레코드 → 이전 테스트에서 설정한 tier limit(1 token)이 계속 적용
+  - Reserve 로직: tier check **먼저** 실행, 통과해야 global check 진행
+  - **결과**: Global을 10M으로 올려도, tier가 1 token이면 429
+  - **수정**: 예산 설정 시 `?model_tier_id=` 쿼리로 tier budget도 함께 설정
+
+  ### P16-c: Redis 선택적 삭제 (`--scan --pattern`) 불안정
+  - `redis-cli --scan --pattern 'budget:*' | while read` 방식은 pipe + Docker exec 조합에서 scan cursor 유실 가능
+  - 일부 키만 삭제됨 → 이전 테스트의 사용량 카운터가 남아서 false 429 유발
+  - **수정**: Redis 내 Lua 스크립트로 SCAN+DEL 원자적 실행
+
+- **추가 발견**: `extractUserKey()`, `extractTeamKey()`, `extractOrgKey()` 모두 `return null` — 예산 reconciliation 시 Redis 카운터 조정이 실제로 실행되지 않음 (estimated 값만 남음). 현재 demo에는 영향 없으나 장기적 정확도 이슈.
+- **Status**: FIXED (DG1, DG2 스크립트 — tier budget 설정 + Lua atomic flush + 흐름 재구성)
+
+---
+
+## P17 — Interactive 모드 미검증 상태로 완료 선언 (에이전트 행동 오류)
+
+- **발견 시점**: 2026-03-26 사용자가 `./demos/DG1-login-to-budget.sh` (interactive) 직접 실행 시
+- **증상**: Interactive 모드에서 "Press Ctrl+C to stop" 출력 직후 스크립트 즉시 종료
+- **기술적 원인**:
+  - Interactive 모드 끝에 `wait` 사용 → 자식 프로세스(`SERVER_PID`) 없으면 즉시 리턴
+  - 서버가 이미 실행 중일 때 `SERVER_PID=""`이므로 `wait`는 대기 없이 종료
+  - DG1, DG2 모두 동일한 버그
+- **수정**: `SERVER_PID` 유무로 분기 — 있으면 `wait $PID`, 없으면 `sleep` 루프로 Ctrl+C 대기
+- **에이전트 행동 오류 분석**:
+  - 사용자 요청: "기본 모드(interactive) + --ci 모드 **둘 다**"
+  - 에이전트 행동: `--ci` 모드만 10회 이상 반복 실행/디버깅, interactive 모드 **0회** 실행
+  - `--ci` 디버깅 과정에서 P15~P16 이슈가 연속 발생 → 문제 해결에 집중하면서 원래 요구사항의 "둘 다" 부분을 추적하지 못함
+  - 결과: 요구사항의 50%만 검증하고 전체를 완료로 처리
+- **교훈**:
+  1. 사용자 요청에 복수 검증 조건이 있으면, **각 조건에 대해 독립적으로 검증**해야 함
+  2. 디버깅이 길어져도, 완료 선언 전에 원래 요구사항 목록을 다시 점검해야 함
+  3. 특히 "A + B 둘 다"라는 요청은 A 검증 완료 후 B 검증을 건너뛰기 쉬움 — 체크리스트 필수
+- **Status**: FIXED (DG1, DG2 interactive 모드 — `wait` → 분기 대기 로직)
+
+---
+
+## P18 — Interactive Demo의 사용자 가이드 부재
+
+- **발견 시점**: 2026-03-26 DG1/DG2 interactive 모드 리뷰 시
+- **증상**: 스크립트가 curl 명령만 나열, 사용자가 무엇을 왜 테스트하는지/결과를 어떻게 확인하는지 알 수 없음
+- **구체적 결함**:
+  1. **시나리오 목적 미설명**: "Integration Scenario: Login → LLM → Budget Block"만 표시. 이 통합 시나리오가 **왜** 필요한지 (F002+F003+F004가 함께 동작하는 것을 검증), 어떤 비즈니스 흐름을 시연하는지 설명 없음
+  2. **Step별 기대 결과 누락**: Step 1~3에 기대 응답(200, JSON 구조) 미표시. Step 4만 "Expected: 429" 한 줄
+  3. **검증 방법 미안내**: LLM 호출 후 예산이 차감됐는지 확인하는 curl(`GET /budgets/user/...`)이 없음. 로그 조회 후 trace ID가 어떤 필드에 있는지 안내 없음
+  4. **Step 간 데이터 전달 미안내**: Step 2에서 API Key를 생성하지만, Step 3에서 `<API_KEY>`를 "어디서 복사해야 하는지" 설명 없음. `.data.key` 필드임을 알려줘야 함
+  5. **Feature 교차점 미설명**: "(F002)"라고만 표시. "여기서 F003의 API Key 인증이 F002의 LLM 게이트웨이와 연결됨"처럼 **통합 포인트**를 설명해야 함
+  6. **단건 demo와의 품질 차이**: F004 demo는 한국어 설명 + 주석 + 검증 단계가 포함됐으나, DG1/DG2는 CI 모드 중심 개발 → interactive는 curl 복붙 수준
+- **근본 원인**: CI 모드를 먼저 구현하고, interactive 모드는 "curl 명령 출력"으로만 처리. Interactive의 목적이 "사용자가 직접 따라하며 통합 동작을 이해하는 가이드"인데, "자동화 스크립트의 수동 버전"으로 만들어버림
+- **교훈**:
+  - Interactive demo는 **튜토리얼**처럼 작성해야 함: 목적 → Step(행위 + 이유) → 기대결과 → 검증방법
+  - 특히 Integration demo는 **Feature 간 교차점**이 핵심 — 각 Step에서 어떤 Feature가 어떤 역할을 하는지 명시
+  - CI 모드와 interactive 모드는 코드 경로뿐 아니라 **설계 목적**이 다름: CI=자동 검증, Interactive=사용자 이해+학습
+- **추가 지적 (사용자)**:
+  - Interactive 모드에서 `<API_KEY>` 플레이스홀더만 출력 → 사용자가 직접 복붙해야 함
+  - 매 실행마다 새 API Key 생성 → 중복 키 누적. "기존 키 재사용" 설계가 없음
+  - 예산/tier budget 미설정 상태로 LLM 호출 안내 → 429 맞고 좌절
+- **수정 (P18 통합)**:
+  - Interactive 시작 시 자동으로: 로그인 + API Key 생성 + 예산 초기화 + tier budget 설정
+  - curl 명령에 실제 API Key 값 주입 (`<API_KEY>` → `$API_KEY`)
+  - 사용자는 curl만 복사해서 바로 실행 가능
+  - Note: API Key는 생성 시에만 전체 값 반환(해시 저장), 기존 키 조회로는 재사용 불가. 향후 "demo 전용 키 캐싱" 고려 가능
+- **Status**: FIXED
+
+---
+
+## P19 — sdd-state.md에 Feature Detail Log 섹션 미생성
+
+**발견 시점**: 2026-03-26, F006 Pipeline 진행 중
+**심각도**: MEDIUM
+**영향 범위**: 모든 Feature (F001~F005 이미 영향)
+
+### 증상
+
+`state-schema.md`에는 `## Feature Detail Log` 섹션이 정의되어 있고, 각 Feature별로 Step 상태 테이블, Verify Progress, Minor Fix Accumulator, Impact Analysis Log 등을 기록하도록 명시되어 있다. 그러나 실제 `sdd-state.md`에는 이 섹션이 생성되지 않았다.
+
+### 원인 분석
+
+- `pipeline.md`의 Pipeline Initialization(Step 1)에서 sdd-state.md를 생성할 때, state-schema.md의 전체 구조를 따르지 않고 최소한의 헤더(Domain Profile, Feature Progress, Demo Groups, Toolchain)만 생성
+- Feature Detail Log는 "State Update Rules"에서 참조되지만, 초기 생성 시 빈 섹션이라도 만들어놓지 않음
+- 결과: Impact Analysis, Step 시작/완료 시간, Verify Progress 등의 기록 위치가 없어 기록 자체가 누락됨
+
+### 영향
+
+- Feature별 Step 진행 이력 추적 불가
+- Step-Back Protocol의 Impact Analysis 기록 누락
+- Verify Progress 기록 불가 (context compaction 대비 불가)
+- 디버깅/감사 시 Feature별 상세 이력 조회 불가
+
+### 기대 동작
+
+Pipeline 시작 시 sdd-state.md에 Feature Detail Log 섹션이 자동 생성되어야 하고, 각 Feature가 pipeline에 진입할 때 해당 Feature의 Detail Log 서브섹션이 초기화되어야 함.
+
+### 권장 수정
+
+1. `pipeline.md` Pipeline Initialization Step 1에서 sdd-state.md 생성 시, state-schema.md의 Feature Detail Log 섹션도 포함
+2. 각 Feature pipeline 시작 시 해당 Feature의 Detail Log 서브섹션 초기화 (빈 Step 테이블 생성)
+
+- **Status**: OPEN
+
+---
+
+## P20 — Implement 완료 선언 시 Demo Script 누락
+
+**발견 시점**: 2026-03-26, F006 verify 단계
+**심각도**: MEDIUM
+**영향 범위**: F006
+
+### 증상
+
+tasks.md에 T016(데모 스크립트)이 정의되어 있고, constitution에 "Demo-Ready Delivery" 원칙이 명시되어 있음에도, implement 단계에서 데모 스크립트(`demos/F006-security-guardrails.sh`)를 생성하지 않고 "모든 task 완료" 로 implement Review를 진행했다.
+
+### 원인 분석
+
+- Implement 단계에서 코드 구현 + 테스트에 집중하다가 Phase 4의 마지막 task(T016 데모 스크립트)를 건너뜀
+- Implement Review의 SC Coverage 테이블에 "Demo-Ready Delivery"를 T016으로 표기했지만 실제 파일 생성 확인을 하지 않음
+- Constitution Rule "VI. Demo-Ready Delivery"와 SKILL.md Rule 2(Demo = Real Working Feature) 위반
+
+### 기대 동작
+
+Implement 완료 시 Completeness Gate에서 모든 task 파일 존재 여부를 확인해야 하며, 데모 스크립트가 없으면 implement를 완료로 표시하면 안 됨.
+
+- **Status**: FIXED (데모 스크립트 즉시 생성)
+
 *Last updated: 2026-03-26*

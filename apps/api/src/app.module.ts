@@ -8,6 +8,7 @@ import { GatewayModule } from './gateway/gateway.module';
 import { AuthModule } from './auth/auth.module';
 import { BudgetModule } from './budget/budget.module';
 import { LoggingModule } from './logging/logging.module';
+import { SecurityModule } from './security/security.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { LoggingModule } from './logging/logging.module';
     AuthModule,
     BudgetModule,
     LoggingModule,
+    SecurityModule,
   ],
   providers: [LoggerService],
   exports: [LoggerService],
