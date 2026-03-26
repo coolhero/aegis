@@ -10,6 +10,9 @@ import { Response } from 'express';
 import { BadRequestException } from '@nestjs/common';
 import { ApiKeyService } from '../auth/api-key.service';
 import { ApiKeyAuthGuard } from '@aegis/common';
+import { BudgetEngineService } from '../budget/budget-engine.service';
+import { BudgetAlertService } from '../budget/budget-alert.service';
+import { BudgetGuard } from '../budget/budget.guard';
 
 describe('GatewayController', () => {
   let controller: GatewayController;
@@ -44,15 +47,29 @@ describe('GatewayController', () => {
       checkModelScope: jest.fn(),
     };
 
+    const mockBudgetEngine = {
+      reconcile: jest.fn().mockResolvedValue(undefined),
+      release: jest.fn().mockResolvedValue(undefined),
+      isRedisAvailable: jest.fn().mockReturnValue(true),
+    };
+
+    const mockBudgetAlert = {
+      checkAndAlert: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [GatewayController],
       providers: [
         { provide: GatewayService, useValue: mockGatewayService },
         { provide: LoggerService, useValue: mockLoggerService },
         { provide: ApiKeyService, useValue: mockApiKeyService },
+        { provide: BudgetEngineService, useValue: mockBudgetEngine },
+        { provide: BudgetAlertService, useValue: mockBudgetAlert },
       ],
     })
       .overrideGuard(ApiKeyAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(BudgetGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
