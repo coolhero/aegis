@@ -48,7 +48,7 @@
 | F008 | Provider Fallback & LB    | completed   | T2   | verified    | main                    | SC 8/8 PASS. 서킷 브레이커+폴백+헬스API. P12/P13 skill feedback.                              |
 | F009 | Knowledge Integration     | completed   | T3   | verified    | main                    | SC 9/9. pgvector RAG+MCP+BullMQ. Per-Task Micro-Verify 적용.                            |
 | F010 | Prompt Management         | completed   | T3   | verified    | main                    | ⚠️ LIMITED. 14/14 SC code-level, 0/14 runtime. verify-report.md PARTIAL               |
-| F011 | Semantic Cache            | in_progress | T3   | implement   | main                    |                                                                                       |
+| F011 | Semantic Cache            | in_progress | T3   | verify      | main                    |                                                                                       |
 | F012 | Developer Playground      | pending     | T3   | pre-context | —                       |                                                                                       |
 
 
@@ -94,5 +94,5 @@
 | tasks | completed | 2026-03-27 | 2026-03-27 | 9 tasks, 8 phases |
 | analyze | completed | 2026-03-27 | 2026-03-27 | PASS. spec↔plan↔tasks 일관성 확인 |
 | implement | completed | 2026-03-27 | 2026-03-27 | 12파일, 185 tests(+7). Build PASS. CacheInterceptor→F002 GatewayController 적용 |
-| verify | pending | | | |
+| verify | completed | 2026-03-28 | 2026-03-28 | ⚠️ LIMITED. 11/11 SC code-level ✅, 0/11 runtime. ↩️ SC-011 regression→fix. verify-report.md PARTIAL |
 | merge | pending | | | |

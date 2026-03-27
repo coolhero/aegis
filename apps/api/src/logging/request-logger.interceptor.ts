@@ -95,7 +95,7 @@ export class RequestLoggerInterceptor implements NestInterceptor {
           latencyMs,
           status: 'success',
           errorDetail: null,
-          cacheHit: false,
+          cacheHit: request.cacheHit === true,
           estimated,
           inputSize,
           outputSize,

@@ -83,6 +83,7 @@ export class CacheInterceptor implements NestInterceptor {
       if (cached) {
         this.logger.debug(`Cache HIT for org ${orgId}`);
         response.setHeader('X-Cache', 'HIT');
+        request.cacheHit = true;
         return of(cached.response);
       }
 
