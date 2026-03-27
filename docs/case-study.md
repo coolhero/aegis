@@ -24,7 +24,11 @@
    - 4.10: F007 Admin Dashboard
    - 4.11: F008 Provider Fallback & LB
    - 4.11b: F009 Knowledge Integration
+   - 4.11c: F010 Prompt Management
+   - 4.11d: F011 Semantic Cache
+   - 4.11e: F012 Developer Playground
    - 4.12~4.14: 도메인 모듈 분석, HARD STOP 사례, Skill Feedback
+7. [Phase 5: Project Completion](#phase-5-project-completion)
 6. [Appendix: Skill Feedback Log](#appendix-skill-feedback-log)
 
 ---
@@ -404,7 +408,7 @@ Phase 5: → Case Study finalization (EN + KO)
 
 ## Phase 4: Pipeline Execution
 
-> `/smart-sdd pipeline` 실행 결과. F001~F009 (T0+T1+T2+T3 Features) + Integration Demo + F004 Regression
+> `/smart-sdd pipeline` 실행 결과. F001~F012 (T0~T3 전체 Features) + Integration Demo + F004 Regression
 
 ### 4.1 Feature별 Pipeline 결과 요약
 
@@ -422,6 +426,9 @@ Phase 5: → Case Study finalization (EN + KO)
 | F007 | Admin Dashboard | 16/16 | ✅ PASS | Next.js+shadcn/ui+SSE. Playwright 런타임. P8~P11 4건 skill feedback 발견 | 2 |
 | F008 | Provider Fallback & LB | 8/8 | ✅ PASS | 서킷 브레이커+폴백 체인+헬스 API. 168 tests. P12/P13 skill feedback | 1 |
 | F009 | Knowledge Integration | 9/9 | ✅ PASS | pgvector RAG+MCP+BullMQ 임베딩. Per-Task Micro-Verify 적용. 3건 런타임 즉시 수정 | 1 |
+| F010 | Prompt Management | 14/14 | ⚠️ LIMITED | 버전 관리+변수 치환+A/B 테스트. 14/14 code-level, 0/14 runtime (DB/Redis 미가동) | 1 |
+| F011 | Semantic Cache | 11/11 | ⚠️ LIMITED | pgvector 코사인 유사도 캐시+CacheInterceptor. SC-011 regression→fix. 11/11 code-level | 1 |
+| F012 | Developer Playground | 12/12 | ⚠️ LIMITED | 모델 테스트 UI+비용 추정+프롬프트 에디터+API 탐색기. 프론트엔드 전용 12/12 code-level | 1 |
 
 ### 4.2 F001 Foundation Setup
 
@@ -719,6 +726,79 @@ redis.call('HSET', KEYS[7],
 
 ---
 
+### 4.11c F010 Prompt Management
+
+**세션**: 1 | **SC**: 14/14 code-level | **결과**: ⚠️ LIMITED
+
+**구현 범위**:
+- 프롬프트 템플릿 CRUD (생성/조회/수정/삭제)
+- 버전 관리 (version_number 자동 증가, 변경 기록)
+- 변수 치환 시스템 (`{{variable}}` 패턴 → resolve API)
+- A/B 테스트 (AbTest, AbTestVariant 엔티티, 가중치 기반 버전 분배)
+- 프롬프트 사용 통계 (PromptUsageStat)
+- 13 tasks, 15파일, 178 tests (+10)
+
+**Verify 결과**:
+- DB/Redis 미가동으로 코드 레벨 검증만 수행
+- 14/14 SC 코드 패스 확인, 0/14 런타임
+- verify-report.md PARTIAL 상태로 완료
+
+**교훈**: T3 Features부터는 인프라 의존성이 높아 LIMITED verify가 반복됨. 코드 레벨 검증만으로도 구조적 결함은 발견 가능하나, 런타임 통합 문제는 놓칠 수 있음.
+
+---
+
+### 4.11d F011 Semantic Cache
+
+**세션**: 1 | **SC**: 11/11 code-level | **결과**: ⚠️ LIMITED (SC-011 regression 수정)
+
+**구현 범위**:
+- pgvector 코사인 유사도 기반 시맨틱 캐시 (CacheEntry 엔티티)
+- 테넌트별 캐시 정책 (CachePolicy — threshold, TTL, enabled)
+- NestJS CacheInterceptor → F002 GatewayController 파이프라인 삽입
+- 캐시 통계 (인메모리 miss counter + DB hit_count 하이브리드)
+- 캐시 무효화 (org 전체 삭제)
+- Fail-open 패턴 (임베딩/DB 장애 시 캐시 스킵)
+- 9 tasks, 12파일, 185 tests (+7)
+
+**SC-011 Regression — cache_hit 미전달**:
+- verify Phase 2에서 발견: CacheInterceptor에서 캐시 히트 시 `request.cacheHit` flag를 설정하지 않음
+- F005 RequestLoggerInterceptor가 항상 `cacheHit: false`로 기록
+- implement 회귀 → 2파일 수정 (cache.interceptor.ts, request-logger.interceptor.ts)
+- 수정 후 Build + Tests 185/185 통과
+
+**교훈**:
+1. **Cross-Feature 연동은 verify에서 발견되기 쉬움**: CacheInterceptor(F011)와 RequestLogger(F005) 간의 데이터 흐름이 implement에서 누락. per-task micro-verify로는 발견 어려운 유형.
+2. **Regression 프로토콜의 가치**: SC-011 문제를 implement로 적절히 회귀시켜 spec/plan 정합성 유지.
+
+---
+
+### 4.11e F012 Developer Playground
+
+**세션**: 1 | **SC**: 12/12 code-level | **결과**: ⚠️ LIMITED
+
+**구현 범위**:
+- Playground 메인 페이지 (`/playground`) — 모델 테스트 UI
+- SSE 스트리밍 채팅 (useStreaming 훅 → fetch ReadableStream)
+- 토큰 카운팅 + 비용 추정 (character-based estimation MVP)
+- F010 프롬프트 에디터 연동 (템플릿 선택 → 변수 폼 → resolve → Send)
+- 요청/응답 히스토리 (세션 내 React state)
+- 모델 비교 (2~3 모델 side-by-side 동시 스트리밍)
+- API 탐색기 (`/playground/api-explorer`) — 정적 카탈로그 + Try it
+- F007 사이드바에 Playground 메뉴 추가
+- 9 tasks, 16파일 (프론트엔드 전용)
+
+**특이사항**:
+- **프론트엔드 전용 Feature**: 신규 백엔드 엔티티/API 없음. 기존 API 소비만.
+- **F007 레이아웃 재사용**: dashboard layout을 그대로 import하여 일관된 UI 유지.
+- **정적 모델 목록**: MVP에서 모델 목록 하드코딩. 향후 `/models` API 추가 시 동적 전환.
+- **API 탐색기는 정적 카탈로그**: OpenAPI 자동 생성이 아닌 F001~F011 API를 수동 카탈로그화.
+
+**교훈**:
+1. **프론트엔드 전용 Feature의 파이프라인 효율**: 엔티티/API 없어 plan/data-model 단순화. 전체 파이프라인이 빠르게 진행됨.
+2. **MVP 범위 결정의 중요성**: 토큰 카운팅(tiktoken vs character estimation), 모델 목록(동적 vs 정적), API 탐색기(OpenAPI vs 정적 카탈로그) — 각각 MVP 수준으로 범위 한정하여 과도한 복잡성 방지.
+
+---
+
 ### 4.12 커스텀 도메인 모듈 활용 분석
 
 Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻게 활용되었는지:
@@ -792,6 +872,70 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 7. **프론트엔드 Feature는 백엔드와 다른 verify 전략 필요**: Playwright로 모든 SC의 전체 동작을 검증, API smoke test 필수 (F007-P8~P11)
 8. **spec에 없으면 코드를 쓰지 않는다**: 누락 발견 시 spec → plan → tasks → implement → verify Cascading Update (F007-P11-D)
 9. **Per-Task Micro-Verify는 필수**: F008(미적용 → P12/P13) vs F009(적용 → 3건 즉시 수정)로 효과 명확히 입증
+10. **Cross-Feature 연동은 verify에서 잡힌다**: F011 SC-011 (CacheInterceptor→RequestLogger cache_hit 미전달)처럼 개별 per-task micro-verify로 잡기 어려운 inter-module 데이터 흐름 문제는 verify Phase 2에서 발견됨
+11. **프론트엔드 전용 Feature는 파이프라인이 빠르다**: F012는 엔티티/API 없어 plan+data-model 단순화. 전체 specify→implement이 1세션에 완료
+
+---
+
+## Phase 5: Project Completion
+
+### 5.1 최종 현황
+
+**기간**: 2026-03-25 ~ 2026-03-28 (4일)
+**총 Features**: 12 (T0: 1, T1: 4, T2: 3, T3: 4)
+**총 SC**: 122 (F001~F012 합계)
+**총 Tests**: 185 (Jest unit + integration)
+**총 소스 파일**: ~120 files (apps/api + apps/web + libs/common)
+
+### 5.2 Feature별 최종 상태
+
+| FID | Name | SC | Verify | Tests |
+|-----|------|----|--------|-------|
+| F001 | Foundation Setup | 8/8 런타임 ✅ | PASS | - |
+| F002 | LLM Gateway Core | 4/4 런타임 ✅ | PASS | - |
+| F003 | Auth & Multi-tenancy | 10/10 런타임 ✅ | PASS | - |
+| F004 | Token Budget Management | 런타임 ✅ | PASS (regression 후) | 107 |
+| F005 | Request Logging & Tracing | 8/16 런타임 | LIMITED | 107 |
+| F006 | Security Guardrails | 8/8 런타임 ✅ | PASS | 168 |
+| F007 | Admin Dashboard | 16/16 Playwright ✅ | PASS | 168 |
+| F008 | Provider Fallback & LB | 8/8 ✅ | PASS | 168 |
+| F009 | Knowledge Integration | 9/9 ✅ | PASS | 178 |
+| F010 | Prompt Management | 14/14 code-level | LIMITED | 178 |
+| F011 | Semantic Cache | 11/11 code-level | LIMITED (regression 수정) | 185 |
+| F012 | Developer Playground | 12/12 code-level | LIMITED | 185 |
+
+### 5.3 LIMITED Verify 분석
+
+F010~F012는 DB/Redis 미가동으로 코드 레벨 검증만 수행. 이는 다음 이유로 허용됨:
+
+1. **인프라 의존성**: PostgreSQL + pgvector + Redis + OpenAI API Key 필요. 개발 환경에서 항상 가용하지 않음
+2. **코드 레벨 검증의 가치**: 구조적 결함, Cross-Feature 연동 누락 (SC-011), RBAC 규칙, API 계약 일치 등을 발견 가능
+3. **런타임 재검증 용이**: `docker compose up -d` + `npm run start:dev`로 인프라 가동 후 verify 재실행 가능
+
+**런타임 재검증 시 주의 항목**:
+- F010: A/B 테스트 가중치 분배, 프롬프트 resolve 변수 치환
+- F011: pgvector 코사인 유사도 검색 정확도, TTL 만료 동작, 임베딩 서비스 fail-open
+- F012: SSE 스트리밍 실시간 렌더링, F010 템플릿 연동, 모델 비교 동시 연결
+
+### 5.4 프로젝트 회고
+
+#### spec-kit-skills Greenfield 워크플로우 평가
+
+| 측면 | 평가 | 근거 |
+|------|------|------|
+| **Feature 분해** | ⭐⭐⭐⭐⭐ | 12 Features, 4 Tiers, 4 Release Groups — 의존성 그래프 기반 순서가 자연스럽게 작동 |
+| **SDD Pipeline 품질** | ⭐⭐⭐⭐ | specify→plan→tasks→implement 각 단계가 명확한 산출물. verify에서 실제 버그 발견 (F003 jti, F004 estimation, F011 cache_hit) |
+| **HARD STOP 가치** | ⭐⭐⭐⭐⭐ | 4건의 Critical 발견 (§4.13). 특히 F004 "모델별 예산" 도메인 결정은 HARD STOP 없이는 불가능 |
+| **Verify 품질** | ⭐⭐⭐ | F001~F009 런타임 검증 우수. F010~F012 LIMITED는 인프라 제약 — 코드 레벨로도 SC-011 발견 |
+| **도메인 모듈** | ⭐⭐⭐⭐ | 3개 커스텀 모듈(ai-gateway, token-budget, prompt-guard)이 SC 품질과 버그 예방에 실질적 기여 |
+| **총 소요 시간** | ⭐⭐⭐⭐ | 4일에 12 Features 완료. 프론트엔드+백엔드 풀스택 |
+
+#### 핵심 수치
+
+- **Skill Feedback**: 22건 (P1~P18 + F007 P8~P11 + F008 P12~P13)
+- **Regression**: 2건 (F004 estimation+reconciliation, F011 SC-011 cache_hit)
+- **Cascading Updates**: F007에서 1건 (spec 없이 코드 추가 → spec 보완)
+- **Demo Groups**: 2개 (DG1: Login→LLM→Budget, DG2: Auth→Logging)
 
 ---
 
@@ -805,4 +949,4 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 
 ---
 
-*Last updated: 2026-03-27*
+*Last updated: 2026-03-28*
