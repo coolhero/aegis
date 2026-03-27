@@ -24,6 +24,9 @@
 | Document | F009 | `id`, `org_id`, `title`, `content_type`, `chunk_count`, `embedding_status` (pending/processing/done/failed), `created_at` | — |
 | Embedding | F009 | `id`, `document_id`, `chunk_index`, `content`, `vector` (pgvector), `metadata`, `created_at` | — |
 | McpServer | F009 | `id`, `org_id`, `name`, `url`, `protocol_version`, `tools`, `enabled`, `health_status` | — |
-| PromptTemplate | F010 | `id`, `org_id`, `name`, `description`, `variables`, `active_version_id`, `status` (draft/published/archived), `created_at` | F012 |
+| PromptTemplate | F010 | `id`, `org_id`, `name`, `description`, `variables` (jsonb), `active_version_id`, `status` (draft/published/archived), `created_by`, `created_at`, `updated_at` | F012 |
 | PromptVersion | F010 | `id`, `template_id`, `version_number`, `content`, `change_note`, `created_by`, `created_at` | F012 |
+| AbTest | F010 | `id`, `template_id`, `status` (active/completed), `created_at`, `ended_at` | — |
+| AbTestVariant | F010 | `id`, `ab_test_id`, `version_id`, `weight`, `call_count`, `total_tokens` | — |
+| PromptUsageStat | F010 | `id`, `template_id` (unique), `call_count`, `total_tokens`, `last_used_at` | — |
 | CacheEntry | F011 | `id`, `org_id`, `model`, `query_hash`, `query_vector` (pgvector), `response`, `tokens_saved`, `hit_count`, `ttl`, `created_at`, `expires_at` | — |

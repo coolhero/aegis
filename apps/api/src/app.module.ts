@@ -11,6 +11,7 @@ import { LoggingModule } from './logging/logging.module';
 import { SecurityModule } from './security/security.module';
 import { EventsModule } from './events/events.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
+import { PromptModule } from './prompt/prompt.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
     SecurityModule,
     EventsModule,
     KnowledgeModule,
+    PromptModule,
   ],
   providers: [LoggerService],
   exports: [LoggerService],

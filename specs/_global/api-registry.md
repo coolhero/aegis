@@ -92,10 +92,16 @@
 | POST | `/prompts` | F010 | F007, F012 | 프롬프트 생성 |
 | GET | `/prompts` | F010 | F007, F012 | 프롬프트 목록 |
 | GET | `/prompts/:id` | F010 | F007, F012 | 프롬프트 상세 |
+| PUT | `/prompts/:id` | F010 | F007, F012 | 프롬프트 수정 (새 버전 생성) |
+| DELETE | `/prompts/:id` | F010 | F007 | 프롬프트 삭제 (cascade) |
 | GET | `/prompts/:id/versions` | F010 | F007, F012 | 버전 이력 |
 | POST | `/prompts/:id/publish` | F010 | F007 | 버전 배포 |
 | POST | `/prompts/:id/rollback` | F010 | F007 | 버전 롤백 |
 | POST | `/prompts/:id/ab-test` | F010 | F007 | A/B 테스트 설정 |
+| GET | `/prompts/:id/ab-test/stats` | F010 | F007 | A/B 테스트 통계 |
+| DELETE | `/prompts/:id/ab-test` | F010 | F007 | A/B 테스트 종료 |
+| POST | `/prompts/:id/resolve` | F010 | F012 | 프롬프트 해결 (변수 치환) |
+| GET | `/prompts/:id/stats` | F010 | F007 | 프롬프트 사용 통계 |
 
 ## F011 — Semantic Cache
 

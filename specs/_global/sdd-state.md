@@ -47,7 +47,7 @@
 | F007 | Admin Dashboard           | completed   | T2   | verified    | main                    | SC 16/16. Next.js+shadcn/ui+SSE. Playwright 런타임. P8-P11 skill feedback.                |
 | F008 | Provider Fallback & LB    | completed   | T2   | verified    | main                    | SC 8/8 PASS. 서킷 브레이커+폴백+헬스API. P12/P13 skill feedback.                              |
 | F009 | Knowledge Integration     | completed   | T3   | verified    | main                    | SC 9/9. pgvector RAG+MCP+BullMQ. Per-Task Micro-Verify 적용.                            |
-| F010 | Prompt Management         | pending     | T3   | pre-context | —                       |                                                                                       |
+| F010 | Prompt Management         | in_progress | T3   | specify     | main                    |                                                                                       |
 | F011 | Semantic Cache            | pending     | T3   | pre-context | —                       |                                                                                       |
 | F012 | Developer Playground      | pending     | T3   | pre-context | —                       |                                                                                       |
 
@@ -71,3 +71,16 @@
 | Lint  | 사용 가능  | `npm run lint` (eslint v10 + typescript-eslint) | eslint.config.mjs, 에러 0건 경고 35건 |
 
 
+## Feature Detail Log
+
+### F010-prompt-management
+
+| Step | Status | Started | Completed | Notes |
+|------|--------|---------|-----------|-------|
+| specify | completed | 2026-03-27 | 2026-03-27 | 14 FR, 14 SC, 5 US. AbTest/AbTestVariant/PromptUsageStat 엔티티 추가 |
+| plan | completed | 2026-03-27 | 2026-03-27 | 5 엔티티, 12 API, 13 소스파일 |
+| tasks | completed | 2026-03-27 | 2026-03-27 | 13 tasks, 8 phases |
+| analyze | completed | 2026-03-27 | 2026-03-27 | PASS. 0 CRITICAL, 1 MINOR WARNING |
+| implement | completed | 2026-03-27 | 2026-03-27 | 15파일, 178 tests(+10). Build PASS |
+| verify | pending | | | |
+| merge | pending | | | |

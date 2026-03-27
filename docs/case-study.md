@@ -22,7 +22,8 @@
    - 4.8: F004 Regression — Token Estimation + Reconciliation 수정
    - 4.9: F006 Security Guardrails
    - 4.10: F007 Admin Dashboard
-   - 4.11: Feature별 Pipeline 결과 요약 (updated)
+   - 4.11: F008 Provider Fallback & LB
+   - 4.11b: F009 Knowledge Integration
    - 4.12~4.14: 도메인 모듈 분석, HARD STOP 사례, Skill Feedback
 6. [Appendix: Skill Feedback Log](#appendix-skill-feedback-log)
 
@@ -403,7 +404,7 @@ Phase 5: → Case Study finalization (EN + KO)
 
 ## Phase 4: Pipeline Execution
 
-> `/smart-sdd pipeline` 실행 결과. F001~F005 (T0+T1 Features) + Integration Demo + F004 Regression
+> `/smart-sdd pipeline` 실행 결과. F001~F009 (T0+T1+T2+T3 Features) + Integration Demo + F004 Regression
 
 ### 4.1 Feature별 Pipeline 결과 요약
 
@@ -419,6 +420,8 @@ Phase 5: → Case Study finalization (EN + KO)
 | F004R | Regression (estimation+reconciliation) | SC-003,014 | ✅ PASS | FR-016 pessimistic estimation, FR-005 reconciliation null 수정 | 1 |
 | F006 | Security Guardrails | 8/8 | ✅ PASS | PII 마스킹, 인젝션 방어, 테넌트별 보안 정책, 스트리밍 필터. 61 신규 테스트 | 1 |
 | F007 | Admin Dashboard | 16/16 | ✅ PASS | Next.js+shadcn/ui+SSE. Playwright 런타임. P8~P11 4건 skill feedback 발견 | 2 |
+| F008 | Provider Fallback & LB | 8/8 | ✅ PASS | 서킷 브레이커+폴백 체인+헬스 API. 168 tests. P12/P13 skill feedback | 1 |
+| F009 | Knowledge Integration | 9/9 | ✅ PASS | pgvector RAG+MCP+BullMQ 임베딩. Per-Task Micro-Verify 적용. 3건 런타임 즉시 수정 | 1 |
 
 ### 4.2 F001 Foundation Setup
 
@@ -654,6 +657,68 @@ redis.call('HSET', KEYS[7],
 
 ---
 
+### 4.11 F008 Provider Fallback & Load Balancing
+
+**Pipeline 흐름**: specify → plan → tasks → implement → verify → merge
+**성과**: 프로바이더 자동 페일오버, 서킷 브레이커(CLOSED→OPEN→HALF_OPEN), 레이턴시 기반 라우팅, 헬스 API. 168 tests (23 suites).
+
+**핵심 컴포넌트**:
+- **CircuitBreakerService**: 프로바이더별 상태 관리 (CLOSED/OPEN/HALF_OPEN). 연속 5회 실패 → OPEN, 30초 후 HALF_OPEN
+- **LatencyTrackerService**: 프로바이더 응답 시간 추적, 가중치 기반 라우팅 결정
+- **HealthController**: `GET /providers/health` — 프로바이더 상태, 평균 레이턴시, 에러율 노출
+- **GatewayService 확장**: 최대 2-hop 폴백 체인, X-Fallback-Provider 헤더
+
+**런타임 검증 결과 (8/8 SC)**:
+- SC-001~003 (서킷 브레이커 상태 전이): ✅ CODE (연속 실패 → OPEN → HALF_OPEN → CLOSED/OPEN)
+- SC-004 (자동 폴백 + X-Fallback-Provider): ✅ RUNTIME (API Key 스코프 "*" 와일드카드 수정 후 성공)
+- SC-005 (2-hop 초과 → 503): ✅ CODE
+- SC-006 (프로바이더 헬스 API): ✅ RUNTIME (200 + OpenAI/Anthropic 상태)
+- SC-007 (레이턴시 라우팅): ✅ RUNTIME (LLM 요청 후 avg_latency 기록)
+- SC-008 (상태 전이 로깅): ✅ CODE
+
+**수정 이력**: API Key 스코프 "*" 와일드카드 처리 추가 — 기존 `checkModelScope`가 와일드카드를 인식하지 못하는 버그 발견 및 수정.
+
+**Skill Feedback**:
+- P12: Per-Task Micro-Verify 미수행 — implement 전체를 일괄 코드 작성으로 처리
+- P13: Verify Phase 3에서 CODE 레벨로 SC PASS 보고 (Rule 5 반복 위반)
+
+---
+
+### 4.11b F009 Knowledge Integration
+
+**Pipeline 흐름**: specify → plan → tasks → implement → verify → merge
+**성과**: pgvector 기반 RAG 검색, MCP 도구 서버 연동, BullMQ 비동기 임베딩 파이프라인. Per-Task Micro-Verify 최초 적용 — implement 중 3건 런타임 에러 즉시 발견·수정.
+
+**핵심 컴포넌트**:
+- **DocumentService**: 문서 CRUD + BullMQ 임베딩 큐 연동
+- **EmbeddingWorker**: BullMQ 워커, 청크 분할(500 토큰 + 50 오버랩) → OpenAI text-embedding-3-small → pgvector 저장
+- **KnowledgeQueryService**: 코사인 유사도 기반 top-K 검색 (테넌트 격리)
+- **QueryRouterService**: 쿼리 유형 자동 분류 (rag/mcp/hybrid/none)
+- **McpServerService**: MCP 서버 등록, tools/list 조회, JSON-RPC 호출 (5초 타임아웃)
+
+**런타임 검증 결과 (9/9 SC)**:
+- SC-001 (문서 업로드 → 202 + pending): ✅ RUNTIME
+- SC-002 (BullMQ 임베딩 처리 → done): ✅ RUNTIME
+- SC-003 (RAG 쿼리 → 코사인 검색): ✅ RUNTIME (similarity: 0.369)
+- SC-004 (MCP 서버 등록): ✅ RUNTIME
+- SC-005 (테넌트 격리): ✅ CODE (org_id 필터 적용)
+- SC-006 (임베딩 실패 → failed): ✅ RUNTIME
+- SC-007 (쿼리 라우터): ✅ RUNTIME
+- SC-008 (MCP 5초 타임아웃): ✅ CODE
+- SC-009 (DELETE cascade): ✅ CODE
+
+**Per-Task Micro-Verify로 발견한 3건 (implement 단계 즉시 수정)**:
+1. BullMQ Redis 연결 에러 → `BullModule.forRoot()` 누락 수정
+2. pgvector 컬럼 타입 충돌 → 수동 ALTER TABLE + TypeORM vector 필드 제외
+3. SQL 컬럼명 camelCase 불일치 → raw SQL에 쌍따옴표 적용
+
+**교훈**:
+1. **Per-Task Micro-Verify의 효과 입증**: P12(F008)에서 발견된 "일괄 코드 작성" 문제를 F009에서 개선. 3건의 런타임 에러를 implement 단계에서 즉시 발견하여 verify 단계 부하 대폭 감소
+2. **pgvector 통합의 까다로움**: TypeORM과 pgvector 간 타입 호환 이슈, raw SQL 쿼리 시 컬럼명 케이싱 주의 필요
+3. **BullMQ 연동 패턴 확립**: F005(로깅) + F009(임베딩)로 BullMQ 큐 패턴이 안정화됨
+
+---
+
 ### 4.12 커스텀 도메인 모듈 활용 분석
 
 Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻게 활용되었는지:
@@ -712,8 +777,10 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 | **F007: 에러 오분류** | F007-P9 | API 파라미터 불일치를 "업스트림 미지원"으로 잘못 분류 |
 | **F007: 부분 검증 = PASS** | F007-P10 | 페이지 렌더링만 확인, CRUD 동작 미검증으로 PASS 보고 |
 | **F007: 구현 미완성 보고** | F007-P11 | 코드 작성 = 완료 착각, spec 없이 코드 추가, cascading update 후 verify 스킵 |
+| **F008: Micro-Verify 미수행** | F008-P12 | implement 일괄 코드 작성 후 런타임 확인 없이 다음 단계 진행 |
+| **F008: CODE 레벨 PASS** | F008-P13 | Verify Phase 3에서 CODE 레벨로 SC PASS 보고 (Rule 5 반복 위반) |
 
-**개선 추이**: P1~P3 (초기, 치명적) → P5~P7 (중기, verify 품질) → P10~P14 (후기, 세부 이슈) → P15~P18 (통합, 환경+UX) → F007 P8~P11 (프론트엔드 Feature, 새로운 검증 패턴). 프론트엔드 Feature에서 새로운 유형의 검증 문제가 대량 발생 — **백엔드 Feature와 프론트엔드 Feature는 다른 검증 전략이 필요함**.
+**개선 추이**: P1~P3 (초기, 치명적) → P5~P7 (중기, verify 품질) → P10~P14 (후기, 세부 이슈) → P15~P18 (통합, 환경+UX) → F007 P8~P11 (프론트엔드, 새로운 검증 패턴) → F008 P12~P13 (Micro-Verify 재발) → **F009에서 Micro-Verify 적용 성공** (3건 즉시 수정). 프론트엔드 Feature에서 새로운 유형의 검증 문제가 대량 발생 — **백엔드 Feature와 프론트엔드 Feature는 다른 검증 전략이 필요함**.
 
 **가장 중요한 교훈**:
 1. **verify는 "빌드+테스트 통과"가 아니라 "실제 서버에서 SC 검증"** (P2, P5, P6)
@@ -724,6 +791,7 @@ Phase 1에서 생성한 3개 커스텀 도메인 모듈이 pipeline에서 어떻
 6. **Demo는 CI 자동화와 Interactive 가이드가 다른 목적 — 둘 다 설계** (P18)
 7. **프론트엔드 Feature는 백엔드와 다른 verify 전략 필요**: Playwright로 모든 SC의 전체 동작을 검증, API smoke test 필수 (F007-P8~P11)
 8. **spec에 없으면 코드를 쓰지 않는다**: 누락 발견 시 spec → plan → tasks → implement → verify Cascading Update (F007-P11-D)
+9. **Per-Task Micro-Verify는 필수**: F008(미적용 → P12/P13) vs F009(적용 → 3건 즉시 수정)로 효과 명확히 입증
 
 ---
 
