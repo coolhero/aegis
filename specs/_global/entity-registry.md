@@ -29,4 +29,5 @@
 | AbTest | F010 | `id`, `template_id`, `status` (active/completed), `created_at`, `ended_at` | — |
 | AbTestVariant | F010 | `id`, `ab_test_id`, `version_id`, `weight`, `call_count`, `total_tokens` | — |
 | PromptUsageStat | F010 | `id`, `template_id` (unique), `call_count`, `total_tokens`, `last_used_at` | — |
-| CacheEntry | F011 | `id`, `org_id`, `model`, `query_hash`, `query_vector` (pgvector), `response`, `tokens_saved`, `hit_count`, `ttl`, `created_at`, `expires_at` | — |
+| CacheEntry | F011 | `id`, `org_id`, `model`, `query_hash`, `query_vector` (pgvector), `response` (jsonb), `tokens_saved`, `hit_count`, `ttl`, `created_at`, `expires_at` | — |
+| CachePolicy | F011 | `id`, `org_id` (unique), `similarity_threshold`, `ttl_seconds`, `enabled`, `created_at`, `updated_at` | — |

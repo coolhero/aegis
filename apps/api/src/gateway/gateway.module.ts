@@ -11,12 +11,13 @@ import { ApiKeyService } from '../auth/api-key.service';
 import { BudgetModule } from '../budget/budget.module';
 import { LoggingModule } from '../logging/logging.module';
 import { SecurityModule } from '../security/security.module';
+import { CacheModule } from '../cache/cache.module';
 import { CircuitBreakerService } from './circuit-breaker.service';
 import { LatencyTrackerService } from './latency-tracker.service';
 import { HealthController } from './health.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Provider, Model, ApiKey]), BudgetModule, LoggingModule, SecurityModule],
+  imports: [TypeOrmModule.forFeature([Provider, Model, ApiKey]), BudgetModule, LoggingModule, SecurityModule, CacheModule],
   controllers: [GatewayController, HealthController],
   providers: [GatewayService, ProviderRegistry, LoggerService, ApiKeyService, CircuitBreakerService, LatencyTrackerService],
   exports: [GatewayService, ProviderRegistry, CircuitBreakerService, LatencyTrackerService],

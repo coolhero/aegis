@@ -21,6 +21,7 @@ import { BudgetAlertService } from '../budget/budget-alert.service';
 import { RequestLoggerInterceptor } from '../logging/request-logger.interceptor';
 import { SecurityGuard } from '../security/security.guard';
 import { GuardInterceptor } from '../security/guard.interceptor';
+import { CacheInterceptor } from '../cache/cache.interceptor';
 
 @Controller('v1')
 export class GatewayController {
@@ -34,7 +35,7 @@ export class GatewayController {
 
   @Post('chat/completions')
   @UseGuards(ApiKeyAuthGuard, SecurityGuard, BudgetGuard)
-  @UseInterceptors(RequestLoggerInterceptor, GuardInterceptor)
+  @UseInterceptors(CacheInterceptor, RequestLoggerInterceptor, GuardInterceptor)
   async chatCompletions(
     @Body() request: ChatCompletionRequest,
     @Req() req: any,

@@ -16,6 +16,7 @@ import { BudgetGuard } from '../budget/budget.guard';
 import { RequestLoggerInterceptor } from '../logging/request-logger.interceptor';
 import { SecurityGuard } from '../security/security.guard';
 import { GuardInterceptor } from '../security/guard.interceptor';
+import { CacheInterceptor } from '../cache/cache.interceptor';
 
 describe('GatewayController', () => {
   let controller: GatewayController;
@@ -80,6 +81,8 @@ describe('GatewayController', () => {
       .overrideInterceptor(RequestLoggerInterceptor)
       .useValue({ intercept: (_ctx: any, next: any) => next.handle() })
       .overrideInterceptor(GuardInterceptor)
+      .useValue({ intercept: (_ctx: any, next: any) => next.handle() })
+      .overrideInterceptor(CacheInterceptor)
       .useValue({ intercept: (_ctx: any, next: any) => next.handle() })
       .compile();
 

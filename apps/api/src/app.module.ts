@@ -12,6 +12,7 @@ import { SecurityModule } from './security/security.module';
 import { EventsModule } from './events/events.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { PromptModule } from './prompt/prompt.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PromptModule } from './prompt/prompt.module';
     EventsModule,
     KnowledgeModule,
     PromptModule,
+    CacheModule,
   ],
   providers: [LoggerService],
   exports: [LoggerService],
