@@ -75,12 +75,15 @@
 
 | Method | Path | Provider | Consumer(s) | Description |
 |--------|------|----------|-------------|-------------|
-| POST | `/documents` | F009 | F007 | 문서 업로드 |
+| POST | `/documents` | F009 | F007, Admin | 문서 업로드 → 202 (비동기 임베딩) |
 | GET | `/documents` | F009 | F007 | 문서 목록 |
-| DELETE | `/documents/:id` | F009 | F007 | 문서 삭제 |
-| POST | `/knowledge/query` | F009 | F002 (pipeline) | 지식 검색 (RAG/MCP) |
+| GET | `/documents/:id` | F009 | F007 | 문서 상세 (status, chunk_count) |
+| DELETE | `/documents/:id` | F009 | F007, Admin | 문서 삭제 + 임베딩 cascade |
+| POST | `/knowledge/query` | F009 | F012 | 지식 쿼리 (MCP/RAG/HYBRID 라우터) |
+| POST | `/mcp-servers` | F009 | Admin | MCP 서버 등록 (tools/list 자동) |
 | GET | `/mcp-servers` | F009 | F007 | MCP 서버 목록 |
-| POST | `/mcp-servers` | F009 | F007 | MCP 서버 등록 |
+| DELETE | `/mcp-servers/:id` | F009 | Admin | MCP 서버 삭제 |
+| POST | `/mcp-servers/:id/call` | F009 | F012 | MCP 도구 호출 (JSON-RPC 5s) |
 
 ## F010 — Prompt Management
 

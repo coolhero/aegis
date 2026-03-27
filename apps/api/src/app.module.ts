@@ -10,6 +10,7 @@ import { BudgetModule } from './budget/budget.module';
 import { LoggingModule } from './logging/logging.module';
 import { SecurityModule } from './security/security.module';
 import { EventsModule } from './events/events.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { EventsModule } from './events/events.module';
     LoggingModule,
     SecurityModule,
     EventsModule,
+    KnowledgeModule,
   ],
   providers: [LoggerService],
   exports: [LoggerService],

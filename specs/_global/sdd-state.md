@@ -46,7 +46,7 @@
 | F006 | Security Guardrails       | completed   | T2   | verified    | main                    | SC 8/8 런타임(demo CI), 61 unit tests, 168 total. verify-report.md PASS |                                                                           |
 | F007 | Admin Dashboard           | completed   | T2   | verified    | main                    | SC 16/16. Next.js+shadcn/ui+SSE. Playwright 런타임. P8-P11 skill feedback.                |
 | F008 | Provider Fallback & LB    | completed   | T2   | verified    | main                    | SC 8/8 PASS. 서킷 브레이커+폴백+헬스API. P12/P13 skill feedback.                              |
-| F009 | Knowledge Integration     | pending     | T3   | pre-context | —                       |                                                                                       |
+| F009 | Knowledge Integration     | in_progress | T3   | implement ✅ | 009-knowledge-integration | build✅ 168tests✅. 임베딩 done✅ RAG 검색✅ MCP 등록✅. verify 대기.                           |
 | F010 | Prompt Management         | pending     | T3   | pre-context | —                       |                                                                                       |
 | F011 | Semantic Cache            | pending     | T3   | pre-context | —                       |                                                                                       |
 | F012 | Developer Playground      | pending     | T3   | pre-context | —                       |                                                                                       |
