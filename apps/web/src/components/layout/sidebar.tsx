@@ -13,6 +13,7 @@ const navItems = [
   { href: '/dashboard/api-keys', label: 'API Keys', icon: '🔑', roles: ['admin', 'member'] },
   { href: '/dashboard/logs', label: 'Logs', icon: '📋', roles: ['admin', 'member', 'viewer'] },
   { href: '/dashboard/realtime', label: 'Realtime', icon: '⚡', roles: ['admin', 'member', 'viewer'] },
+  { href: '/playground', label: 'Playground', icon: '🧪', roles: ['admin', 'member'] },
 ];
 
 export function Sidebar() {

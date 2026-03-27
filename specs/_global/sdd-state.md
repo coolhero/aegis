@@ -49,7 +49,7 @@
 | F009 | Knowledge Integration     | completed   | T3   | verified    | main                    | SC 9/9. pgvector RAG+MCP+BullMQ. Per-Task Micro-Verify 적용.                            |
 | F010 | Prompt Management         | completed   | T3   | verified    | main                    | ⚠️ LIMITED. 14/14 SC code-level, 0/14 runtime. verify-report.md PARTIAL               |
 | F011 | Semantic Cache            | completed   | T3   | verified    | main                    | ⚠️ LIMITED. 11/11 SC code-level, 0/11 runtime. ↩️ SC-011 fix. verify-report.md PARTIAL |
-| F012 | Developer Playground      | pending     | T3   | pre-context | —                       |                                                                                       |
+| F012 | Developer Playground      | in_progress | T3   | specify     | main                    |                                                                                       |
 
 
 ## Demo Groups
@@ -96,3 +96,15 @@
 | implement | completed | 2026-03-27 | 2026-03-27 | 12파일, 185 tests(+7). Build PASS. CacheInterceptor→F002 GatewayController 적용 |
 | verify | completed | 2026-03-28 | 2026-03-28 | ⚠️ LIMITED. 11/11 SC code-level ✅, 0/11 runtime. ↩️ SC-011 regression→fix. verify-report.md PARTIAL |
 | merge | completed | 2026-03-28 | 2026-03-28 | main 직접 커밋 (CLAUDE.md: no branches) |
+
+### F012-developer-playground
+
+| Step | Status | Started | Completed | Notes |
+|------|--------|---------|-----------|-------|
+| specify | completed | 2026-03-28 | 2026-03-28 | 15 FR, 12 SC, 6 US. Key Entities 없음 (프론트엔드 전용) |
+| plan | completed | 2026-03-28 | 2026-03-28 | 0 엔티티, 0 API (프론트엔드 전용), 7 컴포넌트 + 4 hooks |
+| tasks | completed | 2026-03-28 | 2026-03-28 | 9 tasks, 9 phases |
+| analyze | completed | 2026-03-28 | 2026-03-28 | PASS. spec↔plan↔tasks 일관성 확인 (프론트엔드 전용, 엔티티 없음) |
+| implement | completed | 2026-03-28 | 2026-03-28 | 16파일, 185 tests. Build PASS. 프론트엔드 전용 (Next.js+shadcn/ui) |
+| verify | pending | | | |
+| merge | pending | | | |
