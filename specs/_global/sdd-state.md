@@ -47,7 +47,7 @@
 | F007 | Admin Dashboard           | completed   | T2   | verified    | main                    | SC 16/16. Next.js+shadcn/ui+SSE. Playwright 런타임. P8-P11 skill feedback.                |
 | F008 | Provider Fallback & LB    | completed   | T2   | verified    | main                    | SC 8/8 PASS. 서킷 브레이커+폴백+헬스API. P12/P13 skill feedback.                              |
 | F009 | Knowledge Integration     | completed   | T3   | verified    | main                    | SC 9/9. pgvector RAG+MCP+BullMQ. Per-Task Micro-Verify 적용.                            |
-| F010 | Prompt Management         | in_progress | T3   | specify     | main                    |                                                                                       |
+| F010 | Prompt Management         | completed   | T3   | verified    | main                    | ⚠️ LIMITED. 14/14 SC code-level, 0/14 runtime. verify-report.md PARTIAL               |
 | F011 | Semantic Cache            | pending     | T3   | pre-context | —                       |                                                                                       |
 | F012 | Developer Playground      | pending     | T3   | pre-context | —                       |                                                                                       |
 
@@ -82,5 +82,7 @@
 | tasks | completed | 2026-03-27 | 2026-03-27 | 13 tasks, 8 phases |
 | analyze | completed | 2026-03-27 | 2026-03-27 | PASS. 0 CRITICAL, 1 MINOR WARNING |
 | implement | completed | 2026-03-27 | 2026-03-27 | 15파일, 178 tests(+10). Build PASS |
-| verify | pending | | | |
-| merge | pending | | | |
+| verify | completed | 2026-03-27 | 2026-03-27 | ⚠️ LIMITED — DB/Redis 미가동. 14/14 SC code-level ✅, 0/14 runtime. verify-report.md PARTIAL |
+| merge | completed | 2026-03-27 | 2026-03-27 | main 직접 커밋 (CLAUDE.md: no branches) |
+
+#### Verify Progress
